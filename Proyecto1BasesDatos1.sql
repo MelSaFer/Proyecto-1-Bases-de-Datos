@@ -32,7 +32,8 @@ DROP TABLE IF EXISTS Pedido;
 CREATE TABLE Pedido (
 		idPedido INT PRIMARY KEY AUTO_INCREMENT,
         fecha DATE NOT NULL,
-        cedula INT NOT NULL
+        cedula INT NOT NULL,
+        idTipoPago INT NOT NULL
 );
 #-------------------------------------------------
 DROP TABLE IF EXISTS Producto;
@@ -64,7 +65,7 @@ DROP TABLE IF EXISTS Categoria;
 CREATE TABLE Categoria(
 		idCategoria INT PRIMARY KEY AUTO_INCREMENT,
         descripcion VARCHAR(30) NOT NULL,
-        procImpuesto DECIMAL(2,2) NOT NULL DEFAULT 0.0
+        porcImpuesto DECIMAL(2,2) NOT NULL DEFAULT 0.0
 );
 #-------------------------------------------------
 DROP TABLE IF EXISTS Proveedor;
@@ -127,41 +128,56 @@ CREATE TABLE Cliente (
         direccion VARCHAR(30) NOT NULL,
         idCanton INT NOT NULL
 );
-
+#-------------------------------------------------
 DROP TABLE IF EXISTS tipoPago;
 CREATE TABLE tipoPago (
 		idTipoPago INT PRIMARY KEY AUTO_INCREMENT,
-        descripcion VARCHAR(15) NOT NULL,
-        idCliente INT NOT NULL
+        descripcion VARCHAR(15) NOT NULL
 );
-
+#-------------------------------------------------
 DROP TABLE IF EXISTS Tarjeta;
 CREATE TABLE Tarjeta (
 		numTarjeta INT PRIMARY KEY,
         ccv INT NOT NULL,
         tipo VARCHAR(15) NOT NULL,
         fechaCaducidad DATE NOT NULL,
-        idCliente INT NOT NULL
+        cedula INT NOT NULL
 );
-
+#-------------------------------------------------
 DROP TABLE IF EXISTS Criptomoneda;
 CREATE TABLE Criptomoneda (
 		direccionCripto VARCHAR(30) PRIMARY KEY,
         tipo VARCHAR(15) NOT NULL,
-        idCliente INT NOT NULL
+        cedula INT NOT NULL
 );
-
+#-------------------------------------------------
 DROP TABLE IF EXISTS Cheque;
 CREATE TABLE Cheque (
 		numCheque INT PRIMARY KEY,
         rutaBancaria INT NOT NULL,
         fechaApertura DATE NOT NULL,
         cuentaBancaria INT NOT NULL,
-        idCliente INT NOT NULL
+        cedula INT NOT NULL
 );
 
 #ALTER TABLES---------------------------------------------------------------------------------------
-
+ALTER TABLE Sucursal ADD CONSTRAINT SucursalXCanton_fk FOREIGN KEY(idCanton) REFERENCES Canton(idCanton);
+ALTER TABLE Canton ADD CONSTRAINT CantonXProvincia_fk FOREIGN KEY(idPronvincia) REFERENCES Provincia(idProvincia);
+ALTER TABLE Provincia ADD CONSTRAINT ProvinciaXPais_fk FOREIGN KEY(idPais) REFERENCES Pais(idPais);
+ALTER TABLE Empleado ADD CONSTRAINT EmpleadoXSucursal_fk FOREIGN KEY(idSucursal) REFERENCES Sucursal(idSucursal);
+ALTER TABLE Empleado ADD CONSTRAINT EmpleadoXCargo_fk FOREIGN KEY(idCargo) REFERENCES Cargo(idCargo);
+ALTER TABLE Promocion ADD CONSTRAINT PromocionXProducto_fk FOREIGN KEY(idProducto) REFERENCES Producto(idProducto);
+ALTER TABLE Producto ADD CONSTRAINT ProductoXSucursal_fk FOREIGN KEY(idSucursal) REFERENCES Sucursal(idSucursal);
+ALTER TABLE Producto ADD CONSTRAINT ProductoXCategoria_fk FOREIGN KEY(idCategoria) REFERENCES Categoria(idCategoria);
+ALTER TABLE Producto ADD CONSTRAINT ProductoXProveedor_fk FOREIGN KEY(idProveedor) REFERENCES Proveedor(idProveedor);
+ALTER TABLE ProductoXPedido ADD CONSTRAINT ProductoXPedido_XProducto_fk FOREIGN KEY(idProducto) REFERENCES Producto(idProducto);
+ALTER TABLE ProductoXPedido ADD CONSTRAINT ProductoXPedido_XPedido_fk FOREIGN KEY(idPedido) REFERENCES Pedido(idPedido);
+ALTER TABLE Pedido ADD CONSTRAINT PedidoXTipoPago_fk FOREIGN KEY(idTipoPago) REFERENCES tipoPago(idTipoPago);
+ALTER TABLE Pedido ADD CONSTRAINT PedidoXCliente_fk FOREIGN KEY(cedula) REFERENCES Cliente(cedula);
+ALTER TABLE Tarjeta ADD CONSTRAINT TarjetaXCliente_fk FOREIGN KEY(cedula) REFERENCES Cliente(cedula);
+ALTER TABLE Criptomoneda ADD CONSTRAINT CriptomonedaXCliente_fk FOREIGN KEY(cedula) REFERENCES Cliente(cedula);
+ALTER TABLE Cheque ADD CONSTRAINT ChequeXCliente_fk FOREIGN KEY(cedula) REFERENCES Cliente(cedula);
+ALTER TABLE Cliente ADD CONSTRAINT ClienteXCanton_fk FOREIGN KEY(idCanton) REFERENCES Canton(idCanton);
 #---------------------------------------------------------------------------------------------------
 
 
@@ -172,6 +188,7 @@ CREATE TABLE Cheque (
 ENTRADAS: 
 SALIDAS: 
 ------------------------------------------------------------------*/
+
 
 
 
