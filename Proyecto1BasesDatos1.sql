@@ -162,7 +162,7 @@ CREATE TABLE Cheque (
 
 #ALTER TABLES---------------------------------------------------------------------------------------
 ALTER TABLE Sucursal ADD CONSTRAINT SucursalXCanton_fk FOREIGN KEY(idCanton) REFERENCES Canton(idCanton);
-ALTER TABLE Canton ADD CONSTRAINT CantonXProvincia_fk FOREIGN KEY(idPronvincia) REFERENCES Provincia(idProvincia);
+ALTER TABLE Canton ADD CONSTRAINT CantonXProvincia_fk FOREIGN KEY(idProvincia) REFERENCES Provincia(idProvincia);
 ALTER TABLE Provincia ADD CONSTRAINT ProvinciaXPais_fk FOREIGN KEY(idPais) REFERENCES Pais(idPais);
 ALTER TABLE Empleado ADD CONSTRAINT EmpleadoXSucursal_fk FOREIGN KEY(idSucursal) REFERENCES Sucursal(idSucursal);
 ALTER TABLE Empleado ADD CONSTRAINT EmpleadoXCargo_fk FOREIGN KEY(idCargo) REFERENCES Cargo(idCargo);
@@ -189,11 +189,108 @@ ENTRADAS:
 SALIDAS: 
 ------------------------------------------------------------------*/
 
+#------------------------------CRUDS--------------------------------
+/*------------------------------------------------------------------
+1 - Procedimiento para crud de la tabla país
+Si la Flag es 0 crea, si es 1 lee, si es 2 hace update y si es 4 borra
+ENTRADAS: nombre del pais, el flag, el id del pais
+SALIDAS: Mensaje con el resultado de la transaccion
+------------------------------------------------------------------*/
+DROP PROCEDURE IF EXISTS crudPais;
+DELIMITER $$
+CREATE PROCEDURE crudPais (nombreV VARCHAR(30), flagV INT, idPaisV INT, newName VARCHAR(30))
+BEGIN
+	DECLARE message VARCHAR(30);
+    #FLAG ES 0 -> AGREGAR PAIS
+	IF flagV = 0 THEN
+		#El nombre del pais no existe y no es null
+		IF ((SELECT count(*) FROM Pais WHERE nombre = nombreV) = 0) AND (nombreV IS NOT NULL) THEN
+			INSERT INTO Pais (nombre)
+						VALUES (nombreV);
+			SET message = "Se ha insertado con éxito";
+		ELSE
+			SET message = "El pais ya existe o envio el nombre no valido";
+		END IF;
+	END IF;
+    # FLAG ES 1 -> CONSULTAR
+	IF flagV = 1 THEN
+			SELECT Pais.nombre, Pais.idPais FROM Pais
+			WHERE Pais.nombre = IFNULL(nombreV, Pais.nombre) 
+            AND Pais.idPais = IFNULL(idPaisV, Pais.idPais);
+            
+			IF(SELECT COUNT(*) FROM Pais 
+				WHERE Pais.nombre = IFNULL(nombreV, Pais.nombre) 
+				AND Pais.idPais = IFNULL(idPaisV, Pais.idPais)) = 0 THEN
+                SET message = "No existe elemento con esa descripcion";
+			END IF;
+	END IF;
+    # FLAG ES 2 -> MODIFICAR
+    IF flagV = 2 THEN
+		IF (nombreV IS NULL AND idPaisV IS NULL) THEN
+			SET message = "Para modificar debe colocar el nombre del pais y el codigo";
+		ELSE
+			UPDATE Pais SET Pais.nombre = IFNULL(newName, Pais.nombre) 
+            WHERE Pais.idPais = idPaisV
+            AND Pais.nombre = IFNULL(nombreV, Pais.nombre);
+            SET message = "Se ha modificado con exito";
+		END IF;
+	END IF;
+    # FLAG ES 3 -> ELIMINAR
+    IF flagV = 3 THEN
+		IF (nombreV IS NULL AND idPaisV IS NULL) THEN
+			SET message = "Para eliminar debe colocar el nombre del pais y el codigo";
+		ELSE
+			DELETE FROM Pais WHERE Pais.idPais = idPaisV AND 
+								   Pais.nombre = IFNULL(nombreV, Pais.nombre);
+            SET message = "Se ha eliminado con éxito";
+		END IF;
+	END IF;
+    SELECT message as Resultado;
+END;
+$$
 
+/*------------------------------------------------------------------
+1 - Procedimiento para crud de la tabla país
+Si la Flag es 0 crea, si es 1 lee, si es 2 hace update y si es 4 borra
+ENTRADAS: nombre del pais, el flag, el id del pais
+SALIDAS: Mensaje con el resultado de la transaccion
+------------------------------------------------------------------*/
+DROP PROCEDURE IF EXISTS crudProvincia;
+DELIMITER $$
+CREATE PROCEDURE crudProvincia (nombreV VARCHAR(30), idPaisV INT, flagV INT, 
+								newName VARCHAR(30), newIdProvincia INT)
+BEGIN
+	DECLARE message VARCHAR(60);
+    #FLAG ES 0 -> AGREGAR PAIS
+	IF flagV = 0 THEN
+		#El nombre de la provincia no existe y no es null
+        IF ((SELECT count(*) FROM Provincia WHERE nombre = nombreV GROUP BY provincia.nombre) != 0) 
+			OR (nombreV IS NULL) OR (idPaisV IS NULL) OR ((SELECT COUNT(*) FROM  Pais 
+            WHERE Pais.idPais = idPaisV GROUP BY Pais.idPais) = 0) THEN
+            SET message = "ERROR";
+		ELSE 
+			INSERT INTO Provincia (nombre, idPais) VALUES (nombreV, idPaisV);
+			SET message = "Se ha insertado con éxito";
+		END IF;
+	
+		
+	END IF;
+    
+    
+    
+    SELECT message as Resultado;
+END;
+$$
 
+CALL crudPais ("COSTA RICA", 0, NULL, NULL);
+SELECT * FROM PAIS;
+CALL crudPais ("COSTA RICA", 2, 1, "Costa Rica");
+SELECT * FROM PAIS;
+#CALL crudPais ("COSTA RICA", 3, 1, "Costa Rica");
 
-
-
+CALL crudProvincia ("SAN JOSE", 7, 0, NULL, NULL);
+SELECT * FROM Provincia;
+#INSERT INTO Provincia (nombre, idPais) VALUES ("Cartago", 1);
 
 
 
