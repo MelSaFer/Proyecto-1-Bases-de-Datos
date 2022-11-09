@@ -192,117 +192,171 @@ SALIDAS:
 #------------------------------CRUDS--------------------------------
 /*------------------------------------------------------------------
 1 - Procedimiento para crud de la tabla país
-Si la Flag es 0 crea, si es 1 lee, si es 2 hace update y si es 4 borra
+Hay un procedimiento diferente para cada opecacion
 ENTRADAS: nombre del pais, el flag, el id del pais
 SALIDAS: Mensaje con el resultado de la transaccion
 ------------------------------------------------------------------*/
-DROP PROCEDURE IF EXISTS crudPais;
+#CREATE---------------------------------
+DROP PROCEDURE IF EXISTS createPais;
 DELIMITER $$
-CREATE PROCEDURE crudPais (nombreV VARCHAR(30), flagV INT, idPaisV INT, newName VARCHAR(30))
+CREATE PROCEDURE createPais (nombreV VARCHAR(30))
 BEGIN
 	DECLARE message VARCHAR(60);
-    #FLAG ES 0 -> AGREGAR PAIS
-	IF flagV = 0 THEN
-		#El nombre del pais no existe y no es null
-		IF ((SELECT count(*) FROM Pais WHERE nombre = nombreV) = 0) AND (nombreV IS NOT NULL) THEN
-			INSERT INTO Pais (nombre)
-						VALUES (nombreV);
-			SET message = "Se ha insertado con éxito";
-		ELSE
-			SET message = "El pais ya existe o envio el nombre no valido";
-		END IF;
+    
+    IF nombreV IS NULL THEN
+		SET message = "El nombre que ha ingresado no es valido";
+        
+    ELSEIF ((SELECT count(*) FROM Pais WHERE nombre = nombreV) != 0) THEN
+		SET message = "El pais ya existe";
+    ELSE
+		INSERT INTO Pais (nombre)
+					VALUES (nombreV);
+		SET message = "Se ha insertado con éxito";
 	END IF;
-    # FLAG ES 1 -> CONSULTAR
-	IF flagV = 1 THEN
-			SELECT Pais.nombre, Pais.idPais FROM Pais
-			WHERE Pais.nombre = IFNULL(nombreV, Pais.nombre) 
-            AND Pais.idPais = IFNULL(idPaisV, Pais.idPais);
-            
-			IF(SELECT COUNT(*) FROM Pais 
-				WHERE Pais.nombre = IFNULL(nombreV, Pais.nombre) 
-				AND Pais.idPais = IFNULL(idPaisV, Pais.idPais)) = 0 THEN
-                SET message = "No existe elemento con esa descripcion";
-			END IF;
-	END IF;
-    # FLAG ES 2 -> MODIFICAR
-    IF flagV = 2 THEN
-		IF (nombreV IS NULL AND idPaisV IS NULL) THEN
-			SET message = "Para modificar debe colocar el nombre del pais y el codigo";
-		ELSE
-			UPDATE Pais SET Pais.nombre = IFNULL(newName, Pais.nombre) 
-            WHERE Pais.idPais = idPaisV
-            AND Pais.nombre = IFNULL(nombreV, Pais.nombre);
-            SET message = "Se ha modificado con exito";
-		END IF;
-	END IF;
-    # FLAG ES 3 -> ELIMINAR
-    IF flagV = 3 THEN
-		IF (nombreV IS NULL AND idPaisV IS NULL) THEN
-			SET message = "Para eliminar debe colocar el nombre del pais y el codigo";
-		ELSE
-			DELETE FROM Pais WHERE Pais.idPais = idPaisV AND 
-								   Pais.nombre = IFNULL(nombreV, Pais.nombre);
-            SET message = "Se ha eliminado con éxito";
-		END IF;
-	END IF;
-    SELECT message as Resultado;
+    SELECT message AS Resultado;
 END;
 $$
+CALL createPais ("Panamá");
+CALL createPais ("Costa Rica");
+CALL createPais ("Alemania");
+
+#READ----------------------------------
+DROP PROCEDURE IF EXISTS readPais;
+DELIMITER $$
+CREATE PROCEDURE readPais (nombreV VARCHAR(30), idPaisV INT)
+BEGIN
+	IF(SELECT COUNT(*) FROM Pais 
+		WHERE Pais.nombre = IFNULL(nombreV, Pais.nombre) 
+		AND Pais.idPais = IFNULL(idPaisV, Pais.idPais)) = 0 THEN
+		SELECT "No existe pais con esa descripcion" AS ERRORM;
+	ELSE
+		SELECT Pais.nombre, Pais.idPais FROM Pais
+		WHERE Pais.nombre = IFNULL(nombreV, Pais.nombre) 
+		AND Pais.idPais = IFNULL(idPaisV, Pais.idPais);
+	END IF;
+END;
+$$
+CALL readPais (null, 1);
+
+#UPDATE-----------------------------------
+DROP PROCEDURE IF EXISTS updatePais;
+DELIMITER $$
+CREATE PROCEDURE updatePais (nombreV VARCHAR(30), idPaisV INT, newName VARCHAR(30))
+BEGIN
+	DECLARE message VARCHAR(90);
+
+	IF (nombreV IS NULL OR idPaisV IS NULL OR newName IS NULL) THEN
+		SET message = "Para modificar debe colocar el nombre del pais y el codigo";
+	ELSE
+		UPDATE Pais SET Pais.nombre = IFNULL(newName, Pais.nombre) 
+		WHERE Pais.idPais = idPaisV
+		AND Pais.nombre = IFNULL(nombreV, Pais.nombre);
+		SET message = "Se ha modificado con exito";
+	END IF;
+    SELECT message AS Resultado;
+END;
+$$
+CALL updatePais ("Costa Rica", 1, "Alemania");
+
+#DELETE--------------------------------
+DROP PROCEDURE IF EXISTS deletePais;
+DELIMITER $$
+CREATE PROCEDURE deletePais (idPaisV INT)
+BEGIN
+	DECLARE message VARCHAR(90);
+    
+	IF (idPaisV IS NULL) THEN
+		SET message = "Para eliminar debe colocar el codigo del país";
+	ELSE
+		DELETE FROM Pais WHERE Pais.idPais = idPaisV;
+		SET message = "Se ha eliminado con éxito";
+	END IF;
+	SELECT message AS Resultado;
+END;
+$$
+CALL deletePais (NULL);
 
 /*------------------------------------------------------------------
-1 - Procedimiento para crud de la tabla país
+1 - Procedimiento para crud de la tabla provincia
 Si la Flag es 0 crea, si es 1 lee, si es 2 hace update y si es 4 borra
 ENTRADAS: nombre del pais, el flag, el id del pais
 SALIDAS: Mensaje con el resultado de la transaccion
 ------------------------------------------------------------------*/
-DROP PROCEDURE IF EXISTS crudProvincia;
+DROP PROCEDURE IF EXISTS createProvincia;
 DELIMITER $$
-CREATE PROCEDURE crudProvincia (nombreV VARCHAR(30), idPaisV INT, flagV INT, 
-								newName VARCHAR(30), newIdProvincia INT, idProvinciaV INT)
+CREATE PROCEDURE createProvincia (nombreV VARCHAR(30), idPaisV INT, nombrePaisV VARCHAR(30))
 BEGIN
-	DECLARE message VARCHAR(90);
-    #FLAG ES 0 -> AGREGAR PAIS
-	IF flagV = 0 THEN
-		#El nombre de la provincia no existe y no es null
-        IF ((SELECT count(*) FROM Provincia WHERE nombre = nombreV) != 0) OR (nombreV IS NULL) OR  (FlagV IS NULL) THEN
-            SET message = "Error al agregar la provincia, ya existe o los datos son null";
-		ELSEIF (idPaisV IS NULL) OR ((SELECT COUNT(*) FROM Pais 
-			WHERE Pais.idPais = idPaisV) = 0) THEN
-            SET message = "ERROR- El país no existe";
-		ELSE 
-			INSERT INTO Provincia (nombre, idPais) VALUES (nombreV, idPaisV);
-			SET message = "Se ha insertado con éxito";
-		END IF;
-	ELSEIF flagV = 1 THEN
-		IF (SELECT COUNT(*) FROM Provincia
+	DECLARE message VARCHAR(60);
+    
+    IF nombreV IS NULL OR (idPaisV IS NULL AND nombrePaisV IS NULL) THEN
+		SET message = "Los datos necesarios son null";
+	ELSEIF ((SELECT count(*) FROM Provincia WHERE nombre = nombreV) != 0) THEN
+		SET message = "El nombre no es valido, ya existe";
+	ELSEIF ((SELECT COUNT(*) FROM Pais 
+		WHERE Pais.idPais = IFNULL(idPaisV, Pais.idPais)
+        AND Pais.nombre = IFNULL(nombrePaisV, Pais.nombre)) = 0) THEN
+		SET message = "ERROR- El país no existe";
+	ELSE 
+		INSERT INTO Provincia (nombre, idPais) VALUES (nombreV, (SELECT Pais.idPais 
+        FROM Pais WHERE Pais.idPais = IFNULL(idPaisV, Pais.idPais)
+        AND Pais.nombre = IFNULL(nombrePaisV, Pais.nombre)));
+		SET message = "Se ha insertado con éxito";
+	END IF;
+    SELECT message AS Resultado;
+END;
+$$
+CALL createProvincia("San Jose", NULL, "Panamá");
+CALL createProvincia("Ciudad de panamá", 1, NULL);
+CALL createProvincia("Cartago", NULL, "Costa Rica");
+
+#READ
+DROP PROCEDURE IF EXISTS readProvincia;
+DELIMITER $$
+CREATE PROCEDURE readProvincia (nombreV VARCHAR(30), idProvinciaV INT, idPaisV INT, nombrePaisV VARCHAR(30))
+BEGIN
+	IF (SELECT COUNT(*) FROM Provincia
 			INNER JOIN Pais ON Pais.idPais = Provincia.idPais
 			WHERE Provincia.nombre = IFNULL(nombreV, Provincia.nombre) 
+            AND Provincia.idProvincia = IFNULL(idProvinciaV, Provincia.idProvincia)
 			AND Provincia.idPais = IFNULL(idPaisV, Provincia.idPais)
-			AND Provincia.idProvincia = IFNULL(idProvinciaV, Provincia.idProvincia)) = 0 THEN
-            SET message = "No existe una provincia con esos datos";
-		END IF;
-        
+			AND Pais.nombre = IFNULL(nombrePaisV, Pais.nombre)) = 0 THEN
+            SELECT "No existe una provincia con esos datos" AS Resultado;
+	ELSE
 		SELECT Provincia.nombre AS "Provincia", Pais.nombre AS "País" FROM Provincia
 		INNER JOIN Pais ON Pais.idPais = Provincia.idPais
 		WHERE Provincia.nombre = IFNULL(nombreV, Provincia.nombre) 
-        AND Provincia.idPais = IFNULL(idPaisV, Provincia.idPais)
-        AND Provincia.idProvincia = IFNULL(idProvinciaV, Provincia.idProvincia);
-
-    END IF;
-    
-    SELECT message as Resultado;
+			AND Provincia.idProvincia = IFNULL(idProvinciaV, Provincia.idProvincia)
+			AND Provincia.idPais = IFNULL(idPaisV, Provincia.idPais)
+			AND Pais.nombre = IFNULL(nombrePaisV, Pais.nombre);
+	END IF;
 END;
 $$
+CALL readProvincia (NULL, NULL, NULL, NULL);
 
-CALL crudPais ("Costa Rica", 0, NULL, NULL);
-SELECT * FROM PAIS;
-CALL crudPais ("COSTA RICA", 2, 1, "Costa Rica");
-SELECT * FROM PAIS;
-#CALL crudPais ("COSTA RICA", 3, 1, "Costa Rica");
+#UPDATE------------------------
+DROP PROCEDURE IF EXISTS updateProvincia;
+DELIMITER $$
+CREATE PROCEDURE updateProvincia (nombreV VARCHAR(30), idProvinciaV INT, idPaisV INT,  nombrePaisV VARCHAR(30), 
+								  newName VARCHAR(30), newIdProvincia INT, newNameProvincia VARCHAR(30))
+BEGIN
+	DECLARE message VARCHAR(60);
+    
+    #IF ((nombreV IS NULL OR idProvincia IS NULL) THEN
+		#SET message AS "Debe ingresar el "
+END;
+$$
+/*
+DROP PROCEDURE IF EXISTS createProvincia;
+DELIMITER $$
+CREATE PROCEDURE createProvincia (nombreV VARCHAR(30), idPaisV INT, nombrePais VARCHAR(30))
+BEGIN
+
+END;
+$$
+*/
 
 
-CALL crudProvincia ("CARTAGO", NULL, 1, NULL, NULL, NULL);
-SELECT * FROM Provincia;
+
 
 
 
