@@ -200,7 +200,7 @@ DROP PROCEDURE IF EXISTS crudPais;
 DELIMITER $$
 CREATE PROCEDURE crudPais (nombreV VARCHAR(30), flagV INT, idPaisV INT, newName VARCHAR(30))
 BEGIN
-	DECLARE message VARCHAR(30);
+	DECLARE message VARCHAR(60);
     #FLAG ES 0 -> AGREGAR PAIS
 	IF flagV = 0 THEN
 		#El nombre del pais no existe y no es null
@@ -258,39 +258,52 @@ SALIDAS: Mensaje con el resultado de la transaccion
 DROP PROCEDURE IF EXISTS crudProvincia;
 DELIMITER $$
 CREATE PROCEDURE crudProvincia (nombreV VARCHAR(30), idPaisV INT, flagV INT, 
-								newName VARCHAR(30), newIdProvincia INT)
+								newName VARCHAR(30), newIdProvincia INT, idProvinciaV INT)
 BEGIN
-	DECLARE message VARCHAR(60);
+	DECLARE message VARCHAR(90);
     #FLAG ES 0 -> AGREGAR PAIS
 	IF flagV = 0 THEN
 		#El nombre de la provincia no existe y no es null
-        IF ((SELECT count(*) FROM Provincia WHERE nombre = nombreV GROUP BY provincia.nombre) != 0) 
-			OR (nombreV IS NULL) OR (idPaisV IS NULL) OR ((SELECT COUNT(*) FROM  Pais 
-            WHERE Pais.idPais = idPaisV GROUP BY Pais.idPais) = 0) THEN
-            SET message = "ERROR";
+        IF ((SELECT count(*) FROM Provincia WHERE nombre = nombreV) != 0) OR (nombreV IS NULL) OR  (FlagV IS NULL) THEN
+            SET message = "Error al agregar la provincia, ya existe o los datos son null";
+		ELSEIF (idPaisV IS NULL) OR ((SELECT COUNT(*) FROM Pais 
+			WHERE Pais.idPais = idPaisV) = 0) THEN
+            SET message = "ERROR- El país no existe";
 		ELSE 
 			INSERT INTO Provincia (nombre, idPais) VALUES (nombreV, idPaisV);
 			SET message = "Se ha insertado con éxito";
 		END IF;
-	
-		
-	END IF;
-    
-    
+	ELSEIF flagV = 1 THEN
+		IF (SELECT COUNT(*) FROM Provincia
+			INNER JOIN Pais ON Pais.idPais = Provincia.idPais
+			WHERE Provincia.nombre = IFNULL(nombreV, Provincia.nombre) 
+			AND Provincia.idPais = IFNULL(idPaisV, Provincia.idPais)
+			AND Provincia.idProvincia = IFNULL(idProvinciaV, Provincia.idProvincia)) = 0 THEN
+            SET message = "No existe una provincia con esos datos";
+		END IF;
+        
+		SELECT Provincia.nombre AS "Provincia", Pais.nombre AS "País" FROM Provincia
+		INNER JOIN Pais ON Pais.idPais = Provincia.idPais
+		WHERE Provincia.nombre = IFNULL(nombreV, Provincia.nombre) 
+        AND Provincia.idPais = IFNULL(idPaisV, Provincia.idPais)
+        AND Provincia.idProvincia = IFNULL(idProvinciaV, Provincia.idProvincia);
+
+    END IF;
     
     SELECT message as Resultado;
 END;
 $$
 
-CALL crudPais ("COSTA RICA", 0, NULL, NULL);
+CALL crudPais ("Costa Rica", 0, NULL, NULL);
 SELECT * FROM PAIS;
 CALL crudPais ("COSTA RICA", 2, 1, "Costa Rica");
 SELECT * FROM PAIS;
 #CALL crudPais ("COSTA RICA", 3, 1, "Costa Rica");
 
-CALL crudProvincia ("SAN JOSE", 7, 0, NULL, NULL);
+
+CALL crudProvincia ("CARTAGO", NULL, 1, NULL, NULL, NULL);
 SELECT * FROM Provincia;
-#INSERT INTO Provincia (nombre, idPais) VALUES ("Cartago", 1);
+
 
 
 
