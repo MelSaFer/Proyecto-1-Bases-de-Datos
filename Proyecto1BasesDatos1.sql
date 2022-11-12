@@ -24,7 +24,7 @@ DROP TABLE IF EXISTS GerenteGeneral;
 CREATE TABLE GerenteGeneral (
 		idGerenteGeneral INT PRIMARY KEY AUTO_INCREMENT,
         nombre VARCHAR(30) NOT NULL,
-        telefono VARCHAR(30) NOT NULL,
+        telefono VARCHAR(13) NOT NULL,
         salarioBase DECIMAL(15,2) NOT NULL
 );
 #-------------------------------------------------
@@ -70,14 +70,14 @@ DROP TABLE IF EXISTS Proveedor;
 CREATE TABLE Proveedor(
 		idProveedor INT PRIMARY KEY AUTO_INCREMENT,
         nombre VARCHAR(30) NOT NULL,
-        telefono INT NOT NULL,
+        telefono VARCHAR(13) NOT NULL,
         porcGanancia DECIMAL(2,2) NOT NULL
 );
 #-------------------------------------------------
 DROP TABLE IF EXISTS Empleado;
 CREATE TABLE Empleado (
 		idEmpleado INT PRIMARY KEY AUTO_INCREMENT,
-        nombre INT NOT NULL,
+        nombre VARCHAR(30) NOT NULL,
         fechaContratacion DATE NOT NULL,
         salarioBase DECIMAL(15,2) NOT NULL,
         idSucursal INT NOT NULL,
@@ -129,9 +129,9 @@ CREATE TABLE Promocion (
 #-------------------------------------------------
 DROP TABLE IF EXISTS Cliente;
 CREATE TABLE Cliente (
-		idCliente INT PRIMARY KEY,
+		idCliente INT PRIMARY KEY AUTO_INCREMENT,
         nombre VARCHAR(30) NOT NULL,
-        telefono INT NOT NULL,
+        telefono VARCHAR(13) NOT NULL,
         correo VARCHAR(30) NOT NULL,
         direccion VARCHAR(30) NOT NULL,
         idCanton INT NOT NULL
@@ -145,7 +145,7 @@ CREATE TABLE tipoPago (
 #-------------------------------------------------
 DROP TABLE IF EXISTS Tarjeta;
 CREATE TABLE Tarjeta (
-		numTarjeta INT PRIMARY KEY,
+		numTarjeta VARCHAR(30) PRIMARY KEY,
         ccv INT NOT NULL,
         tipo VARCHAR(15) NOT NULL,
         fechaCaducidad DATE NOT NULL,
@@ -170,7 +170,7 @@ CREATE TABLE Cheque (
 #-------------------------------------------------
 DROP TABLE IF EXISTS SucursalXProducto;
 CREATE TABLE SucursalXProducto (
-		idSucursalXProducto INT PRIMARY KEY,
+		idSucursalXProducto INT PRIMARY KEY AUTO_INCREMENT,
         idSucursal INT NOT NULL,
         idProducto INT NOT NULL,
         cantidad INT NOT NULL,
@@ -190,7 +190,7 @@ CREATE TABLE Encargo (
 #-------------------------------------------------
 DROP TABLE IF EXISTS EncargoXProducto;
 CREATE TABLE EncargoXProducto (
-		idEncargoXProducto INT PRIMARY KEY,
+		idEncargoXProducto INT PRIMARY KEY AUTO_INCREMENT,
 		idProducto INT NOT NULL,
         idEncargo INT NOT NULL,
         cantidad INT NOT NULL,
@@ -199,7 +199,7 @@ CREATE TABLE EncargoXProducto (
 #-------------------------------------------------
 DROP TABLE IF EXISTS ProductoXProveedor;
 CREATE TABLE ProductoXProveedor (
-		idProductoXProveedor INT PRIMARY KEY,
+		idProductoXProveedor INT PRIMARY KEY AUTO_INCREMENT,
         idProducto INT NOT NULL,
         idProveedor INT NOT NULL,
         cantidad INT NOT NULL,
@@ -410,6 +410,121 @@ BEGIN
 		#SET message AS "Debe ingresar el "
 END;
 $$
+
+#CREATE CANTON
+DROP PROCEDURE IF EXISTS createCanton;
+DELIMITER $$
+CREATE PROCEDURE createCanton (nombreV VARCHAR(30), idProvinciaV VARCHAR(30))
+BEGIN
+	DECLARE message VARCHAR(60);
+    
+    IF (nombreV IS NULL OR idProvinciaV IS NULL) THEN
+		SET message = "Para crear un cantón los datos no deben ser null";
+	ELSEIF ((SELECT COUNT(*) FROM Provincia 
+		WHERE Provincia.idProvincia =idProvinciaV) = 0) THEN
+        SET message = "El cantón debe tener una provincia válida";
+	ELSEIF ((SELECT count(*) FROM Canton WHERE nombre = nombreV) != 0) THEN
+			SET message = "Ya existe un cantón con ese nombre";
+	ELSE
+		INSERT INTO Canton (nombre, idProvincia)
+					VALUES (nombreV, idProvinciaV);
+    END IF;
+    SELECT message AS Resultado;
+END;
+$$
+
+#CREATE GerenteGeneral
+DROP PROCEDURE IF EXISTS createGerenteGeneral;
+DELIMITER $$
+CREATE PROCEDURE createGerenteGeneral (nombreV VARCHAR(30), telefonoV VARCHAR(13), salarioBase DECIMAL(15,2))
+BEGIN
+	DECLARE message VARCHAR(60);
+    
+    IF (nombreV IS NULL OR telefonoV IS NULL OR SalarioBase IS NULL) THEN
+		SET message = "No puede ingresar datos null para crear un gerente";
+	ELSE 
+		INSERT INTO GerenteGeneral (nombre, telefono, salarioBase)
+					VALUES(nombreV,telefonoV,salarioBase);
+		SET message = "Se ha creado el nuevo gerente general";
+	END IF;
+    SELECT message AS Resultado;
+END;
+$$
+
+#CREATE SUCURSAL
+DROP PROCEDURE IF EXISTS createSucursal;
+DELIMITER $$
+CREATE PROCEDURE createSucursal (nombreV VARCHAR(30), direccionV VARCHAR(30),
+								idCantonV INT, idGerenteGeneralV INT)
+BEGIN
+	DECLARE message VARCHAR(60);
+    
+    IF (nombreV IS NULL OR direccionV IS NULL OR idCantonV IS NULL OR 
+		idGerenteGeneralV IS NULL) THEN
+        SET message = "Los datos no deben ser NULL";
+	ELSEIF ((SELECT COUNT(*) FROM Canton WHERE idCanton = idCantonV) = 0) THEN
+		SET message = "Debe tener un Cantón válidos";
+	ELSEIF ((SELECT COUNT(*) FROM gerenteGeneral 
+		WHERE idGerenteGeneral = idGerenteGeneralV) = 0) THEN
+		SET message = "Debe tener un gerente general válido";
+	ELSEIF ((SELECT COUNT(*) FROM Sucursal WHERE nombreSucursal = nombreV)!= 0) THEN
+		SET message = "Ya existe una sucursal con ese nombre";
+	ELSE
+		INSERT INTO Sucursal (nombreSucursal, direccion, idCanton, idGerenteGeneral)
+					VALUES (nombreV, direccionV, idCantonV, idGerenteGeneralV);
+		SET message = "Se ha creado la sucursal de manera exitosa";
+    END IF;
+    SELECT message AS Resultado;
+END;
+$$
+
+#CREATE CARGO
+DROP PROCEDURE IF EXISTS createCargo;
+DELIMITER $$
+CREATE PROCEDURE createCargo (descripcionV VARCHAR(30))
+BEGIN
+	DECLARE message VARCHAR(60);
+    
+    IF (descripcionV IS NULL) THEN
+		SET message = "La descripcion del cargo no puede ser NULL";
+	ELSEIF ((SELECT COUNT(*) FROM Cargo WHERE descripcion = descripcionV) != 0) THEN
+		SET message = "Ya existe cargo con esa descripción";
+	ELSE
+		INSERT INTO Cargo (descripcion) VALUES (descripcionV);
+        SET message = "Se ha insertado el cargo con éxito";
+	END IF;
+    SELECT message AS Resultado;
+	
+END;
+$$
+
+#Create Empleado
+DROP PROCEDURE IF EXISTS createEmpleado;
+DELIMITER $$
+CREATE PROCEDURE createEmpleado (nombreV VARCHAR(30), fechaContratacionV DATE, 
+								salarioBaseV DECIMAL(15,2),idSucursalV INT, idCargoV INT)
+BEGIN
+	DECLARE message VARCHAR(60);
+    
+    IF (nombreV IS NULL OR fechaContratacionV IS NULL OR salarioBaseV IS NULL OR idSucursalV IS NULL
+		OR idCargoV IS NULL) THEN
+        SET message = "No ingreso los datos necesarios para crear un empleado";
+	ELSEIF ((SELECT COUNT(*) FROM Sucursal WHERE idSucursal = idSucursalV) = 0) THEN
+		SET message = "La sucursal ingresada no existe";
+	ELSEIF ((SELECT COUNT(*) FROM Cargo WHERE idCargo = idCargoV) = 0) THEN
+		SET message = "El cargo ingresado no existe";
+	ELSEIF (salarioBaseV < 0) THEN
+		SET message = "El salario debe ser mayor a 0";
+	ELSE 
+		INSERT INTO Empleado (nombre, fechaContratacion, salarioBase, idSucursal, idCargo)
+					VALUES (nombreV, fechaContratacionV, salarioBaseV, idSucursalV, idCargoV);
+		SET message = "Se ha ingresado el empleado con éxito";
+    END IF;
+    SELECT message AS Resultado;
+END;
+$$
+
+
 /*
 DROP PROCEDURE IF EXISTS createProvincia;
 DELIMITER $$
