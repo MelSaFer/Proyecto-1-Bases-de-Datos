@@ -48,7 +48,7 @@ CREATE TABLE Pedido (
 DROP TABLE IF EXISTS Producto;
 CREATE TABLE Producto (
 		idProducto INT PRIMARY KEY AUTO_INCREMENT,
-        precio DECIMAL(15,2) NOT NULL,
+        nombreProducto VARCHAR(30) NOT NULL,
         idCategoria INT NOT NULL
 );
 #-------------------------------------------------
@@ -56,7 +56,7 @@ DROP TABLE IF EXISTS Impuesto;
 CREATE TABLE Impuesto(
 		idImpuesto INT PRIMARY KEY AUTO_INCREMENT,
         descripcion VARCHAR(30) NOT NULL,
-        porcImpuesto DECIMAL(2,2) NOT NULL DEFAULT 0.0
+        porcImpuesto DECIMAL(5,2) NOT NULL DEFAULT 0.0
 );
 #-------------------------------------------------
 DROP TABLE IF EXISTS Categoria;
@@ -71,7 +71,7 @@ CREATE TABLE Proveedor(
 		idProveedor INT PRIMARY KEY AUTO_INCREMENT,
         nombre VARCHAR(30) NOT NULL,
         telefono VARCHAR(13) NOT NULL,
-        porcGanancia DECIMAL(2,2) NOT NULL
+        porcGanancia DECIMAL(5,2) NOT NULL
 );
 #-------------------------------------------------
 DROP TABLE IF EXISTS Empleado;
@@ -123,7 +123,7 @@ CREATE TABLE Promocion (
 		idPromocion INT PRIMARY KEY AUTO_INCREMENT,
         fechaInicial DATE NOT NULL,
         fechaFinal DATE NOT NULL,
-        porcentajeDesc DECIMAL(5,5) NOT NULL,
+        porcentajeDesc DECIMAL(5,2) NOT NULL,
         idProducto INT NOT NULL
 );
 #-------------------------------------------------
@@ -145,7 +145,8 @@ CREATE TABLE tipoPago (
 #-------------------------------------------------
 DROP TABLE IF EXISTS Tarjeta;
 CREATE TABLE Tarjeta (
-		numTarjeta VARCHAR(30) PRIMARY KEY,
+		idTarjeta INT PRIMARY KEY AUTO_INCREMENT,
+		numTarjeta VARCHAR(16) NOT NULL,
         ccv INT NOT NULL,
         tipo VARCHAR(15) NOT NULL,
         fechaCaducidad DATE NOT NULL,
@@ -154,17 +155,19 @@ CREATE TABLE Tarjeta (
 #-------------------------------------------------
 DROP TABLE IF EXISTS Criptomoneda;
 CREATE TABLE Criptomoneda (
-		direccionCripto VARCHAR(30) PRIMARY KEY,
+		idCriptomoneda INT PRIMARY KEY AUTO_INCREMENT,
+		direccionCripto VARCHAR(30),
         tipo VARCHAR(15) NOT NULL,
         idCliente INT NOT NULL
 );
 #-------------------------------------------------
 DROP TABLE IF EXISTS Cheque;
 CREATE TABLE Cheque (
-		numCheque INT PRIMARY KEY,
-        rutaBancaria INT NOT NULL,
+		idCheque INT PRIMARY KEY AUTO_INCREMENT,
+		numCheque VARCHAR(9) NOT NULL,
+        rutaBancaria VARCHAR(23) NOT NULL,
         fechaApertura DATE NOT NULL,
-        cuentaBancaria INT NOT NULL,
+        cuentaBancaria VARCHAR(20) NOT NULL,
         idCliente INT NOT NULL
 );
 #-------------------------------------------------
@@ -202,10 +205,9 @@ CREATE TABLE ProductoXProveedor (
 		idProductoXProveedor INT PRIMARY KEY AUTO_INCREMENT,
         idProducto INT NOT NULL,
         idProveedor INT NOT NULL,
-        cantidad INT NOT NULL,
+        existencias INT NOT NULL,
         fechaProduccion DATE NOT NULL,
-        fechaExpiracion DATE NOT NULL,
-		estado INT NOT NULL  #Para saber si el producto vencio, esta en promo...
+        fechaExpiracion DATE NOT NULL
 );
 #-------------------------------------------------
 DROP TABLE IF EXISTS Detalle;
@@ -285,24 +287,6 @@ CALL createPais ("Panamá");
 CALL createPais ("Costa Rica");
 CALL createPais ("Alemania");
 
-#READ----------------------------------
-DROP PROCEDURE IF EXISTS readPais;
-DELIMITER $$
-CREATE PROCEDURE readPais (nombreV VARCHAR(30), idPaisV INT)
-BEGIN
-	IF(SELECT COUNT(*) FROM Pais 
-		WHERE Pais.nombre = IFNULL(nombreV, Pais.nombre) 
-		AND Pais.idPais = IFNULL(idPaisV, Pais.idPais)) = 0 THEN
-		SELECT "No existe pais con esa descripcion" AS ERRORM;
-	ELSE
-		SELECT Pais.nombre, Pais.idPais FROM Pais
-		WHERE Pais.nombre = IFNULL(nombreV, Pais.nombre) 
-		AND Pais.idPais = IFNULL(idPaisV, Pais.idPais);
-	END IF;
-END;
-$$
-CALL readPais (null, 1);
-
 #UPDATE-----------------------------------
 DROP PROCEDURE IF EXISTS updatePais;
 DELIMITER $$
@@ -374,42 +358,8 @@ CALL createProvincia("San Jose", NULL, "Panamá");
 CALL createProvincia("Ciudad de panamá", 1, NULL);
 CALL createProvincia("Cartago", NULL, "Costa Rica");
 
-#READ
-DROP PROCEDURE IF EXISTS readProvincia;
-DELIMITER $$
-CREATE PROCEDURE readProvincia (nombreV VARCHAR(30), idProvinciaV INT, idPaisV INT, nombrePaisV VARCHAR(30))
-BEGIN
-	IF (SELECT COUNT(*) FROM Provincia
-			INNER JOIN Pais ON Pais.idPais = Provincia.idPais
-			WHERE Provincia.nombre = IFNULL(nombreV, Provincia.nombre) 
-            AND Provincia.idProvincia = IFNULL(idProvinciaV, Provincia.idProvincia)
-			AND Provincia.idPais = IFNULL(idPaisV, Provincia.idPais)
-			AND Pais.nombre = IFNULL(nombrePaisV, Pais.nombre)) = 0 THEN
-            SELECT "No existe una provincia con esos datos" AS Resultado;
-	ELSE
-		SELECT Provincia.nombre AS "Provincia", Pais.nombre AS "País" FROM Provincia
-		INNER JOIN Pais ON Pais.idPais = Provincia.idPais
-		WHERE Provincia.nombre = IFNULL(nombreV, Provincia.nombre) 
-			AND Provincia.idProvincia = IFNULL(idProvinciaV, Provincia.idProvincia)
-			AND Provincia.idPais = IFNULL(idPaisV, Provincia.idPais)
-			AND Pais.nombre = IFNULL(nombrePaisV, Pais.nombre);
-	END IF;
-END;
-$$
-CALL readProvincia (NULL, NULL, NULL, NULL);
-
 #UPDATE------------------------
-DROP PROCEDURE IF EXISTS updateProvincia;
-DELIMITER $$
-CREATE PROCEDURE updateProvincia (nombreV VARCHAR(30), idProvinciaV INT, idPaisV INT,  nombrePaisV VARCHAR(30), 
-								  newName VARCHAR(30), newIdProvincia INT, newNameProvincia VARCHAR(30))
-BEGIN
-	DECLARE message VARCHAR(60);
-    
-    #IF ((nombreV IS NULL OR idProvincia IS NULL) THEN
-		#SET message AS "Debe ingresar el "
-END;
-$$
+
 
 #CREATE CANTON
 DROP PROCEDURE IF EXISTS createCanton;
@@ -537,7 +487,576 @@ $$
 
 
 
+#################################################################################
+######### READS
+#################################################################################
+DROP PROCEDURE IF EXISTS readPais;
+DELIMITER $$
+CREATE PROCEDURE readPais (idPaisV INT)
+BEGIN
+	IF(idPaisV IS NULL) THEN
+		SELECT "Ingrese el id del país" AS ERROR;
+	ELSEIF(SELECT COUNT(*) FROM Pais 
+		WHERE Pais.idPais = IFNULL(idPaisV, Pais.idPais)) = 0 THEN
+		SELECT "No existe pais con ese id" AS ERROR;
+	ELSE
+		SELECT Pais.idPais, Pais.nombre FROM Pais
+		WHERE Pais.idPais = IFNULL(idPaisV, Pais.idPais);
+	END IF;
+END;
+$$
+CALL readPais (4);
+SELECT * FROM PAIS
 
+#=========================================================
+DROP PROCEDURE IF EXISTS readProvincia;
+DELIMITER $$
+CREATE PROCEDURE readProvincia (idProvinciaV INT)
+BEGIN
+
+	IF(idProvinciaV IS NULL) THEN
+		SELECT "Ingrese el id de la provincia" AS ERROR;
+    ELSEIF (SELECT COUNT(*) FROM Provincia 
+		WHERE Provincia.idProvincia = IFNULL(idProvinciaV, Provincia.idProvincia)) = 0 THEN
+		SELECT "No existe pais con ese id" AS ERROR;
+	ELSE
+		SELECT Provincia.idProvincia, Provincia.nombre FROM Provincia
+		WHERE Provincia.idProvincia = IFNULL(idProvinciaV, Provincia.idProvincia);
+	END IF;
+END;
+$$
+CALL readProvincia (3);
+select * from provincia
+
+#========================================================
+DROP PROCEDURE IF EXISTS readCanton;
+DELIMITER $$
+CREATE PROCEDURE readCanton (idCantonV INT)
+BEGIN
+
+	IF(idCantonV IS NULL) THEN
+		SELECT "Ingrese el id del canton" AS ERROR;
+    ELSEIF (SELECT COUNT(*) FROM Canton 
+		WHERE Canton.idCanton = IFNULL(idCantonV, Canton.idCanton)) = 0 THEN
+		SELECT "No existe canton con ese id" AS ERROR;
+	ELSE
+		SELECT Canton.idCanton, Canton.nombre FROM Canton
+		WHERE Canton.idCanton = IFNULL(idCantonV, Canton.idCanton);
+	END IF;
+END;
+$$
+CALL readCanton (1);
+
+INSERT INTO Canton(nombre, idProvincia) VALUES ("Dota", 1)
+select * from canton
+
+#========================================================
+DROP PROCEDURE IF EXISTS readCargo;
+DELIMITER $$
+CREATE PROCEDURE readCargo (idCargoV INT)
+BEGIN
+
+	IF(idCargoV IS NULL) THEN
+		SELECT "Ingrese el id del cargo" AS ERROR;
+    ELSEIF (SELECT COUNT(*) FROM cargo 
+		WHERE cargo.idCargo = IFNULL(idCargoV, cargo.idCargo)) = 0 THEN
+		SELECT "No existe cargo con ese id" AS ERROR;
+	ELSE
+		SELECT cargo.idCargo, cargo.descripcion FROM cargo
+		WHERE cargo.idCargo = IFNULL(idCargoV, cargo.idCargo);
+	END IF;
+END;
+$$
+CALL readCargo (1);
+
+INSERT INTO Cargo(descripcion) VALUES ("Cajero");
+select * from cargo
+
+#========================================================
+DROP PROCEDURE IF EXISTS readGerenteGeneral;
+DELIMITER $$
+CREATE PROCEDURE readGerenteGeneral (idGerenteGeneralV INT)
+BEGIN
+
+	IF(idGerenteGeneralV IS NULL) THEN
+		SELECT "Ingrese el id del gerente general" AS ERROR;
+    ELSEIF (SELECT COUNT(*) FROM gerentegeneral 
+		WHERE gerentegeneral.idGerenteGeneral = IFNULL(idGerenteGeneralV, gerentegeneral.idGerenteGeneral)) = 0 THEN
+		SELECT "No existe gerente general con ese id" AS ERROR;
+	ELSE
+		SELECT gerentegeneral.idGerenteGeneral, gerentegeneral.nombre, gerentegeneral.telefono, gerentegeneral.salarioBase FROM gerentegeneral
+		WHERE gerentegeneral.idGerenteGeneral = IFNULL(idGerenteGeneralV, gerentegeneral.idGerenteGeneral);
+	END IF;
+END;
+$$
+CALL readGerenteGeneral (1);
+
+INSERT INTO gerentegeneral(nombre, telefono, salarioBase) VALUES ("Moises", "88888888", 250000);
+select * from gerentegeneral
+
+#========================================================
+DROP PROCEDURE IF EXISTS readTipoPago;
+DELIMITER $$
+CREATE PROCEDURE readTipoPago (idTipoPagoV INT)
+BEGIN
+
+	IF(idTipoPagoV IS NULL) THEN
+		SELECT "Ingrese el id del tipo de pago" AS ERROR;
+    ELSEIF (SELECT COUNT(*) FROM TipoPago 
+		WHERE TipoPago.idTipoPago = IFNULL(idTipoPagoV, TipoPago.idTipoPago)) = 0 THEN
+		SELECT "No existe tipo de pago con ese id" AS ERROR;
+	ELSE
+		SELECT TipoPago.idTipoPago, TipoPago.descripcion FROM TipoPago
+		WHERE TipoPago.idTipoPago = IFNULL(idTipoPagoV, TipoPago.idTipoPago);
+	END IF;
+END;
+$$
+CALL readTipoPago (1);
+
+INSERT INTO tipopago(descripcion) VALUES ("Tarjeta");
+select * from TipoPago
+
+#========================================================
+DROP PROCEDURE IF EXISTS readCliente;
+DELIMITER $$
+CREATE PROCEDURE readCliente (idClienteV INT)
+BEGIN
+
+	IF(idClienteV IS NULL) THEN
+		SELECT "Ingrese el id del cliente" AS ERROR;
+    ELSEIF (SELECT COUNT(*) FROM cliente 
+		WHERE cliente.idCliente = IFNULL(idClienteV, cliente.idCliente)) = 0 THEN
+		SELECT "No existe cliente con ese id" AS ERROR;
+	ELSE
+		SELECT cliente.idCliente, cliente.nombre, cliente.telefono, cliente.correo, cliente.direccion, cliente.idCanton FROM cliente
+		WHERE cliente.idCliente = IFNULL(idClienteV, cliente.idCliente);
+	END IF;
+END;
+$$
+CALL readCliente (1);
+
+INSERT INTO cliente(idCliente, nombre, telefono, correo, direccion, idCanton) VALUES (1, "Juan", "99999999", "juan@gmail.com", "Hola", 1)
+select * from TipoPago
+
+#========================================================
+DROP PROCEDURE IF EXISTS readTarjeta;
+DELIMITER $$
+CREATE PROCEDURE readTarjeta (idTarjetaV INT)
+BEGIN
+
+	IF(idTarjetaV IS NULL) THEN
+		SELECT "Ingrese el id de la tarjeta" AS ERROR;
+    ELSEIF (SELECT COUNT(*) FROM Tarjeta 
+		WHERE tarjeta.idTarjeta = IFNULL(idTarjetaV, tarjeta.idTarjeta)) = 0 THEN
+		SELECT "No existe tarjeta con ese id" AS ERROR;
+	ELSE
+		SELECT tarjeta.idTarjeta, tarjeta.numTarjeta, tarjeta.ccv, tarjeta.tipo, tarjeta.fechaCaducidad, tarjeta.idCliente FROM tarjeta
+		WHERE tarjeta.idTarjeta = IFNULL(idTarjetaV, Tarjeta.idTarjeta);
+	END IF;
+END;
+$$
+CALL readTarjeta (1);
+
+INSERT INTO Tarjeta(numTarjeta, ccv, tipo, fechaCaducidad, idCliente) VALUES ("6321594986987125", 555, "debito", "2024-06-01", 1)
+select * from Tarjeta
+
+#========================================================
+DROP PROCEDURE IF EXISTS readCriptomoneda;
+DELIMITER $$
+CREATE PROCEDURE readCriptomoneda (idCriptomonedaV INT)
+BEGIN
+
+	IF(idCriptomonedaV IS NULL) THEN
+		SELECT "Ingrese el id de la criptomoneda" AS ERROR;
+    ELSEIF (SELECT COUNT(*) FROM Criptomoneda 
+		WHERE Criptomoneda.idCriptomoneda = IFNULL(idCriptomonedaV, Criptomoneda.idCriptomoneda)) = 0 THEN
+		SELECT "No existe criptomoneda con ese id" AS ERROR;
+	ELSE
+		SELECT Criptomoneda.idCriptomoneda, Criptomoneda.direccionCripto, Criptomoneda.tipo, Criptomoneda.idCliente FROM Criptomoneda
+		WHERE Criptomoneda.idCriptomoneda = IFNULL(idCriptomonedaV, Criptomoneda.idCriptomoneda);
+	END IF;
+END;
+$$
+CALL readCriptomoneda (1);
+
+INSERT INTO Criptomoneda(direccionCripto, tipo, idCliente) VALUES ("2165112315949816219564", "bitcoin", 1)
+select * from Criptomoneda
+
+#========================================================
+DROP PROCEDURE IF EXISTS readCheque;
+DELIMITER $$
+CREATE PROCEDURE readCheque (idChequeV INT)
+BEGIN
+
+	IF(idChequeV IS NULL) THEN
+		SELECT "Ingrese el id del cheque" AS ERROR;
+    ELSEIF (SELECT COUNT(*) FROM Cheque 
+		WHERE Cheque.idCheque = IFNULL(idChequeV, Cheque.idCheque)) = 0 THEN
+		SELECT "No existe cheque con ese id" AS ERROR;
+	ELSE
+		SELECT Cheque.numCheque, Cheque.rutaBancaria, Cheque.fechaApertura, Cheque.cuentaBancaria, Cheque.idCliente FROM Cheque
+		WHERE Cheque.idCheque = IFNULL(idChequeV, Cheque.idCheque);
+	END IF;
+END;
+$$
+CALL readCheque (1);
+
+INSERT INTO Cheque(numCheque, rutaBancaria, fechaApertura, cuentaBancaria, idCliente) 
+VALUES ("123456789", "12345678912345678912345", "2020-05-25", "48963548231597896423", 1);
+select * from Cheque
+
+#========================================================
+DROP PROCEDURE IF EXISTS readSucursal;
+DELIMITER $$
+CREATE PROCEDURE readSucursal (idSucursalV INT)
+BEGIN
+
+	IF(idSucursalV IS NULL) THEN
+		SELECT "Ingrese el id de la sucursal" AS ERROR;
+    ELSEIF (SELECT COUNT(*) FROM Sucursal 
+		WHERE Sucursal.idSucursal = IFNULL(idSucursalV, Sucursal.idSucursal)) = 0 THEN
+		SELECT "No existe sucursal con ese id" AS ERROR;
+	ELSE
+		SELECT Sucursal.idSucursal, Sucursal.nombreSucursal, Sucursal.direccion, Sucursal.idCanton, Sucursal.idGerenteGeneral FROM Sucursal
+		WHERE Sucursal.idSucursal = IFNULL(idSucursalV, Sucursal.idSucursal);
+	END IF;
+END;
+$$
+CALL readSucursal (1);
+
+INSERT INTO Sucursal(nombreSucursal, direccion, idCanton, idGerenteGeneral) 
+VALUES ("Cartago", "Centro", 1, 1);
+
+select * from sucursal
+
+#========================================================
+DROP PROCEDURE IF EXISTS readEmpleado;
+DELIMITER $$
+CREATE PROCEDURE readEmpleado (idEmpleadoV INT)
+BEGIN
+
+	IF(idEmpleadoV IS NULL) THEN
+		SELECT "Ingrese el id del empleado" AS ERROR;
+    ELSEIF (SELECT COUNT(*) FROM Empleado 
+		WHERE Empleado.idEmpleado = IFNULL(idEmpleadoV, Empleado.idEmpleado)) = 0 THEN
+		SELECT "No existe empleado con ese id" AS ERROR;
+	ELSE
+		SELECT Empleado.idEmpleado, Empleado.nombre, Empleado.fechaContratacion, Empleado.salarioBase, 
+        Empleado.idSucursal, Empleado.idCargo FROM Empleado
+		WHERE Empleado.idEmpleado = IFNULL(idEmpleadoV, Empleado.idEmpleado);
+	END IF;
+END;
+$$
+CALL readEmpleado (1);
+
+INSERT INTO Empleado(nombre, fechaContratacion, salarioBase, idSucursal, idCargo) 
+VALUES ("Rebeca", "2015-09-02", 500000, 1, 1);
+
+select * from empleado
+
+#========================================================
+DROP PROCEDURE IF EXISTS readBono;
+DELIMITER $$
+CREATE PROCEDURE readBono (idBonoV INT)
+BEGIN
+
+	IF(idBonoV IS NULL) THEN
+		SELECT "Ingrese el id del bono" AS ERROR;
+    ELSEIF (SELECT COUNT(*) FROM Bono 
+		WHERE Bono.idBono = IFNULL(idBonoV, Bono.idBono)) = 0 THEN
+		SELECT "No existe bono con ese id" AS ERROR;
+	ELSE
+		SELECT Bono.monto, Bono.fecha, Bono.idEmpleado FROM Bono
+		WHERE Bono.idBono = IFNULL(idBonoV, Bono.idBono);
+	END IF;
+END;
+$$
+CALL readBono (1);
+
+INSERT INTO Bono(monto, fecha, idEmpleado) 
+VALUES (250000, "2022-11-12", 1);
+select * from Bono
+
+#========================================================
+DROP PROCEDURE IF EXISTS readEncargo;
+DELIMITER $$
+CREATE PROCEDURE readEncargo (idEncargoV INT)
+BEGIN
+
+	IF(idEncargoV IS NULL) THEN
+		SELECT "Ingrese el id del encargo" AS ERROR;
+    ELSEIF (SELECT COUNT(*) FROM Encargo 
+		WHERE Encargo.idEncargo = IFNULL(idEncargoV, Encargo.idEncargo)) = 0 THEN
+		SELECT "No existe encargo con ese id" AS ERROR;
+	ELSE
+		SELECT Encargo.idEncargo, Encargo.Fecha, Encargo.idSucursal FROM encargo
+		WHERE Encargo.idEncargo = IFNULL(idEncargoV, Encargo.idEncargo);
+	END IF;
+END;
+$$
+CALL readEncargo (1);
+
+INSERT INTO Encargo(fecha, idSucursal) VALUES ("2022-12-11", 1)
+select * from encargo
+
+#========================================================
+DROP PROCEDURE IF EXISTS readProveedor;
+DELIMITER $$
+CREATE PROCEDURE readProveedor (idProveedorV INT)
+BEGIN
+
+	IF(idProveedorV IS NULL) THEN
+		SELECT "Ingrese el id del Proveedor" AS ERROR;
+    ELSEIF (SELECT COUNT(*) FROM Proveedor 
+		WHERE Proveedor.idProveedor = IFNULL(idProveedorV, Proveedor.idProveedor)) = 0 THEN
+		SELECT "No existe Proveedor con ese id" AS ERROR;
+	ELSE
+		SELECT Proveedor.idProveedor, Proveedor.nombre, Proveedor.telefono, Proveedor.porcGanancia FROM Proveedor
+		WHERE Proveedor.idProveedor = IFNULL(idProveedorV, Proveedor.idProveedor);
+	END IF;
+END;
+$$
+CALL readProveedor (1);
+
+INSERT INTO Proveedor(nombre, telefono, porcGanancia) VALUES ("Terranova", "25634895", 9)
+select * from proveedor
+
+#========================================================
+DROP PROCEDURE IF EXISTS readImpuesto;
+DELIMITER $$
+CREATE PROCEDURE readImpuesto (idImpuestoV INT)
+BEGIN
+
+	IF(idImpuestoV IS NULL) THEN
+		SELECT "Ingrese el id del Impuesto" AS ERROR;
+    ELSEIF (SELECT COUNT(*) FROM Impuesto 
+		WHERE Impuesto.idImpuesto = IFNULL(idImpuestoV, Impuesto.idImpuesto)) = 0 THEN
+		SELECT "No existe Impuesto con ese id" AS ERROR;
+	ELSE
+		SELECT Impuesto.idImpuesto, Impuesto.descripcion, Impuesto.porcImpuesto FROM Impuesto
+		WHERE Impuesto.idImpuesto = IFNULL(idImpuestoV, Impuesto.idImpuesto);
+	END IF;
+END;
+$$
+CALL readImpuesto (1);
+
+INSERT INTO Impuesto(descripcion, porcImpuesto) VALUES ("IVA", 13);
+select * from Impuesto;
+
+#========================================================
+DROP PROCEDURE IF EXISTS readCategoria;
+DELIMITER $$
+CREATE PROCEDURE readCategoria (idCategoriaV INT)
+BEGIN
+
+	IF(idCategoriaV IS NULL) THEN
+		SELECT "Ingrese el id del Categoria" AS ERROR;
+    ELSEIF (SELECT COUNT(*) FROM Categoria 
+		WHERE Categoria.idCategoria = IFNULL(idCategoriaV, Categoria.idCategoria)) = 0 THEN
+		SELECT "No existe Categoria con ese id" AS ERROR;
+	ELSE
+		SELECT Categoria.idCategoria, Categoria.descripcion, Categoria.idImpuesto FROM Categoria
+		WHERE Categoria.idCategoria = IFNULL(idCategoriaV, Categoria.idCategoria);
+	END IF;
+END;
+$$
+CALL readCategoria (1);
+
+INSERT INTO Categoria(descripcion, idImpuesto) VALUES ("Lacteo", 1);
+select * from Categoria;
+
+#========================================================
+DROP PROCEDURE IF EXISTS readPedido;
+DELIMITER $$
+CREATE PROCEDURE readPedido (idPedidoV INT)
+BEGIN
+
+	IF(idPedidoV IS NULL) THEN
+		SELECT "Ingrese el id del Pedido" AS ERROR;
+    ELSEIF (SELECT COUNT(*) FROM Pedido 
+		WHERE Pedido.idPedido = IFNULL(idPedidoV, Pedido.idPedido)) = 0 THEN
+		SELECT "No existe Pedido con ese id" AS ERROR;
+	ELSE
+		SELECT Pedido.idPedido, Pedido.fecha, Pedido.idCliente, Pedido.idTipoPago FROM Pedido
+		WHERE Pedido.idPedido = IFNULL(idPedidoV, Pedido.idPedido);
+	END IF;
+END;
+$$
+CALL readPedido (3);
+
+INSERT INTO Pedido(fecha, idCliente, idTipoPago) VALUES ("2022-11-12", 1, 1);
+select * from Pedido;
+
+#========================================================
+DROP PROCEDURE IF EXISTS readProducto;
+DELIMITER $$
+CREATE PROCEDURE readProducto (idProductoV INT)
+BEGIN
+
+	IF(idProductoV IS NULL) THEN
+		SELECT "Ingrese el id del Producto" AS ERROR;
+    ELSEIF (SELECT COUNT(*) FROM Producto 
+		WHERE Producto.idProducto = IFNULL(idProductoV, Producto.idProducto)) = 0 THEN
+		SELECT "No existe Producto con ese id" AS ERROR;
+	ELSE
+		SELECT Producto.idProducto, Producto.nombreProducto, Producto.idCategoria FROM Producto
+		WHERE Producto.idProducto = IFNULL(idProductoV, Producto.idProducto);
+	END IF;
+END;
+$$
+CALL readProducto (1);
+
+INSERT INTO Producto(nombreProducto, idCategoria) VALUES ("Leche", 1);
+select * from Producto;
+
+#========================================================
+DROP PROCEDURE IF EXISTS readDetalle;
+DELIMITER $$
+CREATE PROCEDURE readDetalle (idDetalleV INT)
+BEGIN
+
+	IF(idDetalleV IS NULL) THEN
+		SELECT "Ingrese el id del Detalle" AS ERROR;
+    ELSEIF (SELECT COUNT(*) FROM Detalle 
+		WHERE Detalle.idDetalle = IFNULL(idDetalleV, Detalle.idDetalle)) = 0 THEN
+		SELECT "No existe Detalle con ese id" AS ERROR;
+	ELSE
+		SELECT Detalle.idDetalle, Detalle.cantidad, Detalle.idPedido, Detalle.idProducto FROM Detalle
+		WHERE Detalle.idDetalle = IFNULL(idDetalleV, Detalle.idDetalle);
+	END IF;
+END;
+$$
+CALL readDetalle (1);
+
+INSERT INTO Detalle(cantidad, idPedido, idProducto) VALUES (50, 1, 1);
+select * from Producto;
+
+#========================================================
+DROP PROCEDURE IF EXISTS readProductoXProveedor;
+DELIMITER $$
+CREATE PROCEDURE readProductoXProveedor (idProductoXProveedorV INT)
+BEGIN
+
+	IF(idProductoXProveedorV IS NULL) THEN
+		SELECT "Ingrese el id del ProductoXProveedor" AS ERROR;
+    ELSEIF (SELECT COUNT(*) FROM ProductoXProveedor 
+		WHERE ProductoXProveedor.idProductoXProveedor = IFNULL(idProductoXProveedorV, ProductoXProveedor.idProductoXProveedor)) = 0 THEN
+		SELECT "No existe ProductoXProveedor con ese id" AS ERROR;
+	ELSE
+		SELECT ProductoXProveedor.idProductoXProveedor, ProductoXProveedor.idProducto, ProductoXProveedor.idProveedor,
+        ProductoXProveedor.existencias, ProductoXProveedor.fechaProduccion, ProductoXProveedor.fechaExpiracion FROM ProductoXProveedor
+		WHERE ProductoXProveedor.idProductoXProveedor = IFNULL(idProductoXProveedorV, ProductoXProveedor.idProductoXProveedor);
+	END IF;
+END;
+$$
+CALL readProductoXProveedor (1);
+
+INSERT INTO productoXProveedor(idProductoXProveedor, idProducto, idProveedor, existencias, fechaProduccion, fechaExpiracion) 
+VALUES (1, 1, 1, 500, "2022-05-31", "2022-12-12");
+select * from productoXProveedor;
+
+#========================================================
+DROP PROCEDURE IF EXISTS readPromocion;
+DELIMITER $$
+CREATE PROCEDURE readPromocion (idPromocionV INT)
+BEGIN
+
+	IF(idPromocionV IS NULL) THEN
+		SELECT "Ingrese el id de la Promocion" AS ERROR;
+    ELSEIF (SELECT COUNT(*) FROM Promocion 
+		WHERE Promocion.idPromocion = IFNULL(idPromocionV, Promocion.idPromocion)) = 0 THEN
+		SELECT "No existe Promocion con ese id" AS ERROR;
+	ELSE
+		SELECT Promocion.idPromocion, Promocion.fechaInicial, Promocion.fechaFinal, 
+        Promocion.porcentajeDesc, Promocion.idProducto FROM Promocion
+		WHERE Promocion.idPromocion = IFNULL(idPromocionV, Promocion.idPromocion);
+	END IF;
+END;
+$$
+CALL readPromocion (1);
+
+INSERT INTO promocion(fechaInicial, fechaFinal, porcentajeDesc, idProducto) 
+VALUES ("2022-11-12", "2022-11-30", 1.1, 1);
+select * from promocion;
+
+#========================================================
+DROP PROCEDURE IF EXISTS readSucursalXProducto;
+DELIMITER $$
+CREATE PROCEDURE readSucursalXProducto (idSucursalXProductoV INT)
+BEGIN
+
+	IF(idSucursalXProductoV IS NULL) THEN
+		SELECT "Ingrese el id de la SucursalXProducto" AS ERROR;
+    ELSEIF (SELECT COUNT(*) FROM SucursalXProducto 
+		WHERE SucursalXProducto.idSucursalXProducto = IFNULL(idSucursalXProductoV, SucursalXProducto.idSucursalXProducto)) = 0 THEN
+		SELECT "No existe SucursalXProducto con ese id" AS ERROR;
+	ELSE
+		SELECT SucursalXProducto.idSucursalXProducto, SucursalXProducto.idSucursal, SucursalXProducto.idProducto,
+        SucursalXProducto.cantidad, SucursalXProducto.cantidadMin, SucursalXProducto.cantidadMax, 
+        SucursalXProducto.fechaProduccion, SucursalXProducto.fechaExpiracion, SucursalXProducto.estado FROM SucursalXProducto
+		WHERE SucursalXProducto.idSucursalXProducto = IFNULL(idSucursalXProductoV, SucursalXProducto.idSucursalXProducto);
+	END IF;
+END;
+$$
+CALL readSucursalXProducto (1);
+
+INSERT INTO SucursalXProducto(idSucursalXProducto, idSucursal, idProducto, cantidad, cantidadMin, cantidadMax, fechaProduccion, fechaExpiracion, estado) 
+VALUES (1, 1, 1, 15, 5, 50, "2022-05-01", "2022-12-17", 1);
+select * from SucursalXProducto;
+
+#========================================================
+DROP PROCEDURE IF EXISTS readEncargoXProducto;
+DELIMITER $$
+CREATE PROCEDURE readEncargoXProducto (idEncargoXProductoV INT)
+BEGIN
+
+	IF(idEncargoXProductoV IS NULL) THEN
+		SELECT "Ingrese el id del EncargoXProducto" AS ERROR;
+    ELSEIF (SELECT COUNT(*) FROM EncargoXProducto 
+		WHERE EncargoXProducto.idEncargoXProducto = IFNULL(idEncargoXProductoV, EncargoXProducto.idEncargoXProducto)) = 0 THEN
+		SELECT "No existe EncargoXProducto con ese id" AS ERROR;
+	ELSE
+		SELECT EncargoXProducto.idEncargoXProducto, EncargoXProducto.idProducto, EncargoXProducto.idEncargo,
+        EncargoXProducto.cantidad, EncargoXProducto.precio FROM EncargoXProducto
+		WHERE EncargoXProducto.idEncargoXProducto = IFNULL(idEncargoXProductoV, EncargoXProducto.idEncargoXProducto);
+	END IF;
+END;
+$$
+CALL readEncargoXProducto (1);
+
+INSERT INTO EncargoXProducto(idEncargoXProducto, idProducto, idEncargo, cantidad, precio) 
+VALUES (1, 1, 1, 15, 23650);
+select * from EncargoXProducto;
+
+
+#UPDATE------------------------
+DROP PROCEDURE IF EXISTS updateProvincia;
+DELIMITER $$
+CREATE PROCEDURE updateProvincia (idProvinciaV INT, newNombre VARCHAR(30), newIdPais INT)
+BEGIN
+	DECLARE message VARCHAR(60);
+    
+    IF (idProvinciaV IS NULL) THEN
+		SET message = "Para modificar debe ingresar el id del pais";
+        
+	ELSEIF (SELECT COUNT(*) FROM Provincia WHERE Provincia.idProvincia = idProvinciaV) = 0 THEN
+		SET message = "No existe esa provincia";
+        
+	ELSEIF ((newNombre IS NULL AND newIdPais IS NULL) OR (newIdPais IS NOT NULL AND (SELECT COUNT(*) FROM Pais where idPais = newIdPais) = 0)) THEN
+		SET message = "Para modificar debe ingresar un nombre o idPais valido";
+        
+	ELSE
+		UPDATE Provincia SET Provincia.nombre = IFNULL(newNombre, Provincia.nombre),
+        Provincia.idPais = IFNULL(newIdPais, Provincia.idPais)
+        WHERE Provincia.idProvincia = idProvinciaV;
+        SET message = "Se ha modificado con exito";
+	END IF;
+    SELECT message as Resultado;
+END;
+$$
+
+CALL updateProvincia (2, "Colon", null);
+SELECT * from provincia
 
 
 
