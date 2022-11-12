@@ -283,9 +283,6 @@ BEGIN
     SELECT message AS Resultado;
 END;
 $$
-CALL createPais ("Panamá");
-CALL createPais ("Costa Rica");
-CALL createPais ("Alemania");
 
 #UPDATE-----------------------------------
 DROP PROCEDURE IF EXISTS updatePais;
@@ -354,12 +351,6 @@ BEGIN
     SELECT message AS Resultado;
 END;
 $$
-CALL createProvincia("San Jose", NULL, "Panamá");
-CALL createProvincia("Ciudad de panamá", 1, NULL);
-CALL createProvincia("Cartago", NULL, "Costa Rica");
-
-#UPDATE------------------------
-
 
 #CREATE CANTON
 DROP PROCEDURE IF EXISTS createCanton;
@@ -378,6 +369,7 @@ BEGIN
 	ELSE
 		INSERT INTO Canton (nombre, idProvincia)
 					VALUES (nombreV, idProvinciaV);
+		SET message = "Se ha creado el cantón con éxito";
     END IF;
     SELECT message AS Resultado;
 END;
@@ -470,6 +462,338 @@ BEGIN
 					VALUES (nombreV, fechaContratacionV, salarioBaseV, idSucursalV, idCargoV);
 		SET message = "Se ha ingresado el empleado con éxito";
     END IF;
+    SELECT message AS Resultado;
+END;
+$$
+
+#CREATE BONO
+DROP PROCEDURE IF EXISTS createBono;
+DELIMITER $$
+CREATE PROCEDURE createBono (montoV DECIMAL(15,2), fechaV DATE, idEmpleadoV INT)
+BEGIN
+	DECLARE message VARCHAR(60);
+	
+    IF (montoV IS NULL OR fechaV IS NULL OR idEmpleadoV IS NULL) THEN
+		SET message = "Los datos ingresados no pueden ser null";
+	ELSEIF ((SELECT COUNT(*) FROM Empleado WHERE idEmpleado = idEmpleadoV) = 0) THEN
+		SET message = "El empleado no existe";
+	ELSEIF (montoV <= 0) THEN
+		SET message = "El valor del monto en incorrecto";
+	ELSE
+		INSERT INTO Bono (monto, fecha, idEmpleado)
+					VALUES (montoV, fechaV, idEmpleadoV);
+		SET message = "El bono se ha insertado con éxito";
+	END IF;
+	SELECT message AS Resultado;
+END;
+$$
+
+#CREATE Encargo
+DROP PROCEDURE IF EXISTS createEncargo;
+DELIMITER $$
+CREATE PROCEDURE createEncargo (fechaV DATE, idSucursalV INT)
+BEGIN
+	DECLARE message VARCHAR(60);
+	
+    IF (fechaV IS NULL OR idSucursalV IS NULL) THEN
+		SET message = "Los datos ingresados no pueden ser NULL";
+	ELSEIF ((SELECT COUNT(*) FROM Sucursal WHERE idSucursal= idSucursalV) = 0) THEN
+		SET message = "La sucursal ingresada no existe";
+	ELSE
+		INSERT INTO Encargo (fecha, idSucursal)
+					VALUES (fechaV, idSucursalV);
+		SET message = "El encargo se ha ingresado con éxito";
+    END IF;
+	SELECT message AS Resultado;
+END;
+$$
+
+#CREATE IMPUESTO
+DROP PROCEDURE IF EXISTS createImpuesto;
+DELIMITER $$
+CREATE PROCEDURE createImpuesto (descripcionV VARCHAR(30), porcImpuestoV DECIMAL(5,2))
+BEGIN
+	DECLARE message VARCHAR(60);
+	
+    IF (descripcionV IS NULL OR porcImpuestoV IS NULL) THEN
+		SET message = "Los datos ingresados son null";
+	ELSEIF (porcImpuestoV < 0)THEN
+		SET message = "El porcentaje de impuesto debe ser mayor a 0";
+	ELSE 
+		INSERT INTO Impuesto (descripcion, porcImpuesto)
+					VALUES (descripcionV, porcImpuestoV);
+		SET message = "Se ha creado el nuevo impuesto con éxito";
+	END IF;
+    SELECT message AS Resultado;
+END;
+$$
+
+#CREATE Categoria
+DROP PROCEDURE IF EXISTS createCategoria;
+DELIMITER $$
+CREATE PROCEDURE createCategoria ( descripcionV VARCHAR(30),idImpuestoV INT)
+BEGIN
+	DECLARE message VARCHAR(60);
+	
+    IF (descripcionV IS NULL OR idImpuestoV IS NULL) THEN
+		SET message = "ERROR-Los datos ingresados no pueden ser NULL";
+	ELSEIF (SELECT COUNT(*) FROM IMPUESTO WHERE idImpuesto = idImpuestoV) = 0 THEN
+		SET message = "ERROR-El impuesto ingresado no existe";
+	ELSEIF ((SELECT COUNT(*) FROM Categoria WHERE descripcion = descripcionV)!=0) THEN
+		SET message = "ERROR-La categoria ya existe";
+	ELSE
+		INSERT INTO Categoria (descripcion, idImpuesto)
+					VALUES (descripcionV, idImpuestoV);
+		SET message = "Se ha creado la categoria éxitosamente";
+	END IF;
+    SELECT message AS Resultado;
+END;
+$$
+
+#CREATE Proveedor
+DROP PROCEDURE IF EXISTS createProveedor;
+DELIMITER $$
+CREATE PROCEDURE createProveedor (nombreV VARCHAR(30), telefonoV VARCHAR(13), porcGananciaV DECIMAL(5,2))
+BEGIN
+	DECLARE message VARCHAR(60);
+	
+    IF (nombreV IS NULL OR telefonoV IS NULL OR porcGananciaV IS NULL) THEN
+		SET message = "ERROR- Los datos ingresados no pueden ser null";
+	ELSEIF (PorcGanaNciaV <= 0) THEN
+		SET message = "ERROR- El procentaje de ganancia no puede ser menor que 0";
+	ELSE 
+		INSERT INTO Proveedor (Nombre, telefono, porcGanancia)
+					VALUES (nombreV, telefonoV, porcGananciaV);
+		SET message = "El proveedor se ha creado con éxito";
+	END IF;
+    SELECT message AS resultado;
+END;
+$$
+
+#CREATE TipoPago
+DROP PROCEDURE IF EXISTS createTipoPago;
+DELIMITER $$
+CREATE PROCEDURE createTipoPago (descripcionV VARCHAR(30))
+BEGIN
+	DECLARE message VARCHAR(60);
+    
+    IF (descripcionV IS NULL) THEN
+		SET message = "Los datos ingresados no pueden ser NULL";
+	ELSEIF (SELECT COUNT(*) FROM TipoPago WHERE descripcion = descripcionV) != 0 THEN
+		SET message = "Ya existe el tipo de pago con esa descripcion";
+	ELSE
+		INSERT INTO TipoPago (descripcion)
+					VALUES (descripcionV);
+		SET message = "Se ha creado el nuevo tipo de pago";
+	END IF;
+    SELECT message AS Resultado;  
+END;
+$$
+
+#CREATE Cliente
+DROP PROCEDURE IF EXISTS createCliente;
+DELIMITER $$
+CREATE PROCEDURE createCliente (nombreV VARCHAR(30), telefonoV VARCHAR(13), correoV VARCHAR(30),
+								direccionV VARCHAR(30), idCantonV INT)
+BEGIN
+	DECLARE message VARCHAR(60);
+    
+    IF (nombreV IS NULL OR telefonoV IS NULL OR correoV IS NULL OR direccionV IS NULL 
+		OR idCantonV IS NULL) THEN
+		SET message = "No puede ingresas datos NULL";
+	ELSEIF (SELECT COUNT(*) FROM Canton WHERE idCanton = idCantonV) = 0 THEN
+		SET message = "El cantón ingresado no es válido";
+	ELSEIF (SELECT COUNT(*) FROM Cliente WHERE telefono = telefonoV OR correo = correoV) THEN
+		SET message = "El telefono o el correo ingresado ya existe";
+	ELSE 
+		INSERT INTO Cliente (nombre, telefono, correo, direccion, idCanton)
+					VALUES (nombreV, telefonoV, correoV, direccionV, idCantonV);
+		SET message = "El cliente ha sido insertado con éxito";
+	END IF;
+    SELECT message AS Resultado;	
+END;
+$$
+
+#CREATE Producto
+DROP PROCEDURE IF EXISTS createProducto;
+DELIMITER $$
+CREATE PROCEDURE createProducto (nombreV VARCHAR(30), idCategoriaV INT)
+BEGIN
+	DECLARE message VARCHAR(60);
+    
+    IF (nombreV IS NULL OR idCategoriaV IS NULL) THEN
+		SET message = "Los datos ingresados no deben ser NULL";
+	ELSEIF((SELECT COUNT(*) FROM Categoria WHERE idCategoria = idCategoriaV)=0) THEN
+		SET message = "La categoria de producto ingresada no es válida";
+	ELSEIF ((SELECT COUNT(*) FROM Producto WHERE nombreProducto = nombreV) != 0) THEN
+		SET message = "El producto ya existe";
+	ELSE
+		INSERT INTO Producto (nombreProducto, idCategoria)
+					VALUES(nombreV, idCategoriaV);
+		SET message = "El producto ha sido creado éxitosamente";
+	END IF;
+    SELECT message AS resultado;	
+END;
+$$
+
+#CREATE Promoción
+DROP PROCEDURE IF EXISTS createPromocion;
+DELIMITER $$
+CREATE PROCEDURE createPromocion (fechaInicialV DATE, fechaFinalV DATE, 
+								  porcDescuentoV DECIMAL(5,2), idProductoV INT)
+BEGIN
+	DECLARE message VARCHAR(60);
+	
+    IF (fechaInicialV IS NULL OR fechaFinalV IS NULL OR porcDescuentoV IS NULL OR
+		idProductoV IS NULL) THEN
+        SET message = "Los datos ingresados no pueden ser NULL";
+	ELSEIF(fechaInicialV > fechaFinalV) THEN 
+		SET message = "La fecha inicial debe ser mas reciente que la final";
+	ELSEIF (porcDescuentoV <= 0) THEN
+		SET message = "El procentaje de descuento debe ser mayor a 0";
+	ELSEIF ((SELECT COUNT(*) FROM Producto WHERE idProducto = idProductoV) = 0) THEN
+		SET message = "El id producto ingresado no es valido";
+	ELSE
+		INSERT INTO Promocion (fechaInicial, fechaFinal, porcentajeDesc, idProducto)
+					VALUES (fechaInicialV, fechaFinalV, porcDescuentoV, idProductoV);
+		SET message = "La promocion se ha agregado con exito";
+	END IF;
+    SELECT message AS Resultado;
+END;			
+$$
+
+#CREATE X
+DROP PROCEDURE IF EXISTS createPedido;
+DELIMITER $$
+CREATE PROCEDURE createPedido (fechaV DATE, idTipoPagoV INT, idClienteV INT)
+BEGIN
+	DECLARE message VARCHAR(60);
+	
+    IF (fechaV IS NULL OR idTipoPagoV IS NULL OR idClienteV IS NULL) THEN
+		SET message = "Los datos ingresados no pueden ser null";
+	ELSEIF ((SELECT COUNT(*) FROM cliente WHERE idCliente = idClienteV) = 0) THEN
+		SET message = "El id cliente no es valido";
+	ELSEIF ((SELECT COUNT(*) FROM TipoPago WHERE idTipoPago = idTipoPagoV) = 0) THEN
+		SET message = "El id de tipo de pago no es valido";
+	ELSE
+		INSERT INTO Pedido (fecha, idCliente, idTipoPago)
+					VALUES(fechaV, idClienteV, idTipoPagoV);
+		SET message = "El pedido se ha creado con éxito";
+	END IF;
+    SELECT message AS Resultado;        
+END;
+$$
+
+#CREATE Detalle
+DROP PROCEDURE IF EXISTS createDetalle;
+DELIMITER $$
+CREATE PROCEDURE createDetalle (cantidadV INT, idPedidoV INT, idProductoV INT)
+BEGIN
+	DECLARE message VARCHAR(60);
+    
+    IF (cantidadV IS NULL OR idPedidoV IS NULL OR idProductoV IS NULL) THEN
+		SET message = "Los datos ingresados no pueden ser NULL";
+	ELSEIF cantidadV < 0 THEN
+		SET message = "La cantidad nu puede ser un dato negativo";
+	ELSEIF ((SELECT COUNT(*) FROM Pedido WHERE idPedido = idPedidoV) = 0) THEN
+		SET message = "El id del pedido ingresado no es válido";
+	ELSEIF ((SELECT COUNT(*) FROM Producto WHERE idProducto = idProductoV) = 0) THEN
+		SET message = "El id del producto ingresado no es válido";
+	ELSE
+		INSERT INTO Detalle(cantidad, idPedido, idProducto)
+					VALUES (cantidadV, idPedidoV, idProductoV);
+		SET message = "Se ha agregado el detalle";
+	END IF;
+	SELECT message AS resultado;
+END;
+
+#CREATE EncargoXProducto
+DROP PROCEDURE IF EXISTS createEncargoXProducto;
+DELIMITER $$
+CREATE PROCEDURE createEncargoXProducto (idEncargoV INT, idProductoV INT, cantidadV INT, precioV DECIMAL(15,2))
+BEGIN
+	DECLARE message VARCHAR(60);
+    
+    IF (idEncargoV IS NULL OR idProductoV IS NULL OR cantidadV IS NULL
+		OR precioV IS NULL) THEN
+        SET message = "Los datos ingresados no pueden ser NULL";
+	ELSEIF ((SELECT COUNT(*) FROM Encargo WHERE idEncargo = idEncargoV) = 0) THEN
+		SET message = "El id del encargo es invalido";
+	ELSEIF ((SELECT COUNT(*) FROM Producto WHERE idProducto = idProductoV) = 0) THEN
+		SET message = "El id del producto es invalido";
+	ELSEIF (CantidadV < 0) OR (precioV < 0) THEN
+		SET message = "Ni la cantidad, ni el precio, deben ser menores a 0";
+	ELSE
+		INSERT INTO EncargoXProducto(idProducto, idEncargo,cantidad, precio)
+					VALUES(idProductoV, idEncargoV,cantidadV, precioV);
+		SET message = "Se ha insertado el EncargoXProducto con éxito";
+	END IF;
+    SELECT message AS resultado;
+END;
+$$
+
+#CREATE ProductoXProveedor
+DROP PROCEDURE IF EXISTS createProductoXProveedor;
+DELIMITER $$
+CREATE PROCEDURE createProductoXProveedor (idProductoV INT, idProveedorV INT,
+											existenciasV INT, fechaProduccionV DATE,
+                                            fechaExpiracionV DATE)
+BEGIN
+	DECLARE message VARCHAR(90);
+    
+    IF (idProductoV IS NULL OR idProveedorV IS NULL OR existenciasV IS NULL
+		OR fechaProduccionV IS NULL OR fechaExpiracionV IS NULL) THEN
+        SET message = "Los datos ingresados no pueden ser NULL";
+	ELSEIF ((SELECT COUNT(*) FROM Producto WHERE idProducto = idProductoV) = 0) THEN
+		SET message = "El id Producto no es valido";
+	ELSEIF ((SELECT COUNT(*) FROM Proveedor WHERE idProveedor = idProveedorV) = 0) THEN
+		SET message = "El id Proveedor no es valido";
+	ELSEIF (existenciasV < 0) THEN
+		SET message = "Las existencias no pueden ser negativas";
+	ELSEIF (fechaProduccionV > fechaExpiracionV) THEN
+		SET message = "La fecha de prodducion no puede ser despues de la de expiracion";
+	ELSE
+		INSERT INTO Productoxproveedor(idProducto, idProveedor,existencias,fechaProduccion, fechaExpiracion)
+					VALUES(idProductoV, idProveedorV,existenciasV,fechaProduccionV, fechaExpiracionV);
+		SET message = "Se agregó el Productoxproveedor con éxito";
+	END IF;
+    SELECT message AS Resultado;
+END;
+$$
+
+#CREATE SucursalXProducto
+DROP PROCEDURE IF EXISTS createSucursalXProducto;
+DELIMITER $$
+CREATE PROCEDURE createSucursalXProducto (idSucursalV INT, idProductoV INT, cantidadV INT,
+										  cantidadMinV INT, cantidadMaxV INT, fechaProduccionV DATE,
+                                          fechaExpiracionV DATE, estadoV INT)
+BEGIN
+	DECLARE message VARCHAR(90);
+    
+    IF (idSucursalV IS NULL OR idProductoV IS NULL OR cantidadV IS NULL
+		OR cantidadMinV IS NULL OR cantidadMaxV IS NULL OR fechaProduccionV IS NULL 
+        OR fechaExpiracionV IS NULL OR estadoV IS NULL) THEN
+        SET message = "Los datos ingresados no pueden ser NULL";
+	ELSEIF ((SELECT COUNT(*) FROM Producto WHERE idProducto = idProductoV) = 0) THEN
+		SET message = "El id Producto no es valido";
+	ELSEIF ((SELECT COUNT(*) FROM Sucursal WHERE idSucursal = idSucursalV) = 0) THEN
+		SET message = "El id Sucursal no es valido";
+	ELSEIF (cantidadV < 0 OR cantidadMinV < 0 OR cantidadMaxV < 0) THEN
+		SET message = "Las cantidades no pueden ser negativas";
+	ELSEIF (cantidadMaxV < cantidadMinV) THEN
+		SET message = "La cantidad minima no puede ser mayor a la maxima";
+	ELSEIF (fechaProduccionV > fechaExpiracionV) THEN
+		SET message = "La fecha de prodducion no puede ser despues de la de expiracion";
+	#FALTA VALIDAR ESTADO
+	ELSE
+		INSERT INTO Sucursalxproducto(idSucursal, idProducto, cantidad, cantidadMin, 
+										cantidadMax, fechaProduccion, fechaExpiracion, 
+                                        estado)
+									VALUES(idSucursalV, idProductoV, cantidadV, cantidadMinV, 
+										cantidadMaxV, fechaProduccionV, fechaExpiracionV, 
+                                        estadoV);
+		SET message = "Se agregó la Sucursalxproducto con éxito";
+	END IF;
     SELECT message AS Resultado;
 END;
 $$
@@ -838,10 +1162,6 @@ BEGIN
 	END IF;
 END;
 $$
-CALL readImpuesto (1);
-
-INSERT INTO Impuesto(descripcion, porcImpuesto) VALUES ("IVA", 13);
-select * from Impuesto;
 
 #========================================================
 DROP PROCEDURE IF EXISTS readCategoria;
@@ -860,10 +1180,6 @@ BEGIN
 	END IF;
 END;
 $$
-CALL readCategoria (1);
-
-INSERT INTO Categoria(descripcion, idImpuesto) VALUES ("Lacteo", 1);
-select * from Categoria;
 
 #========================================================
 DROP PROCEDURE IF EXISTS readPedido;
@@ -882,10 +1198,6 @@ BEGIN
 	END IF;
 END;
 $$
-CALL readPedido (3);
-
-INSERT INTO Pedido(fecha, idCliente, idTipoPago) VALUES ("2022-11-12", 1, 1);
-select * from Pedido;
 
 #========================================================
 DROP PROCEDURE IF EXISTS readProducto;
@@ -904,10 +1216,6 @@ BEGIN
 	END IF;
 END;
 $$
-CALL readProducto (1);
-
-INSERT INTO Producto(nombreProducto, idCategoria) VALUES ("Leche", 1);
-select * from Producto;
 
 #========================================================
 DROP PROCEDURE IF EXISTS readDetalle;
@@ -926,10 +1234,6 @@ BEGIN
 	END IF;
 END;
 $$
-CALL readDetalle (1);
-
-INSERT INTO Detalle(cantidad, idPedido, idProducto) VALUES (50, 1, 1);
-select * from Producto;
 
 #========================================================
 DROP PROCEDURE IF EXISTS readProductoXProveedor;
@@ -949,11 +1253,6 @@ BEGIN
 	END IF;
 END;
 $$
-CALL readProductoXProveedor (1);
-
-INSERT INTO productoXProveedor(idProductoXProveedor, idProducto, idProveedor, existencias, fechaProduccion, fechaExpiracion) 
-VALUES (1, 1, 1, 500, "2022-05-31", "2022-12-12");
-select * from productoXProveedor;
 
 #========================================================
 DROP PROCEDURE IF EXISTS readPromocion;
@@ -973,11 +1272,6 @@ BEGIN
 	END IF;
 END;
 $$
-CALL readPromocion (1);
-
-INSERT INTO promocion(fechaInicial, fechaFinal, porcentajeDesc, idProducto) 
-VALUES ("2022-11-12", "2022-11-30", 1.1, 1);
-select * from promocion;
 
 #========================================================
 DROP PROCEDURE IF EXISTS readSucursalXProducto;
@@ -998,11 +1292,7 @@ BEGIN
 	END IF;
 END;
 $$
-CALL readSucursalXProducto (1);
 
-INSERT INTO SucursalXProducto(idSucursalXProducto, idSucursal, idProducto, cantidad, cantidadMin, cantidadMax, fechaProduccion, fechaExpiracion, estado) 
-VALUES (1, 1, 1, 15, 5, 50, "2022-05-01", "2022-12-17", 1);
-select * from SucursalXProducto;
 
 #========================================================
 DROP PROCEDURE IF EXISTS readEncargoXProducto;
@@ -1022,12 +1312,6 @@ BEGIN
 	END IF;
 END;
 $$
-CALL readEncargoXProducto (1);
-
-INSERT INTO EncargoXProducto(idEncargoXProducto, idProducto, idEncargo, cantidad, precio) 
-VALUES (1, 1, 1, 15, 23650);
-select * from EncargoXProducto;
-
 
 #UPDATE------------------------
 DROP PROCEDURE IF EXISTS updateProvincia;
@@ -1055,8 +1339,109 @@ BEGIN
 END;
 $$
 
+
+
+
+#PRUEBAS
+#Datos prueba
+CALL createPais ("Panamá");
+CALL createPais ("Costa Rica");
+CALL createPais ("Alemania");
+CALL createProvincia("San Jose", NULL, "Panamá");
+CALL createProvincia("Ciudad de panamá", 1, NULL);
+CALL createProvincia("Cartago", NULL, "Costa Rica");
+SELECT * FROM PROVINCIA; SELECT * FROM Canton;
+CALL createCanton("Tarrazú", 2);
+select * from canton;
+
+CALL createGerenteGeneral ("Juanito", 51916271, 1000000);
+
+CALL CREATESUCURSAL("Super de juanito", "San Marcos", 1, 1);
+
+CALL CreateCargo("Administracion");
+SELECT * FROM CARGO;
+
+CALL CreateEmpleado("Maria Vargas", "2003/12/12", 1000, 1, 1);
+
+CALL CreateBono(15000, "2005-7-15", 1);
+
+CALL createEncargo("2008-9-17", 1);
+
+CALL createImpuesto("Canasta básica", 5.2);
+SELECT * FROM IMPUESTO;
+
+CALL createCategoria ("Lacteos", 1);
+
+CALL CreateProveedor ("Juancito", "7162-1629", 6.1);
+
+CALL CreateTipoPago ("TARJETA");
+
+CALL createCliente("Melissa", "87117263", "meli1@gmail.com", "50 norte de...", 1);
+
+CALL CreateProducto("Leche dos pinos 500ml", 1);
+
+CALL createPromocion("2008-09-16", "2008-09-20", 5, 1);
+
+CALL CreatePedido("2008-8-16", 1, 1);
+
+CALL createDetalle(9, 1, 1);
+
+CALL createEncargoXProducto(1, 1, 1, 5000);
+CALL createProductoXProveedor(1, 1, 1, "2003-8-9", "2004-7-10");
+
+CALL createSucursalXProducto (1, 1, 10, 10, 50, "2003-8-9", "2004-7-10", 1);
+
+INSERT INTO SucursalXProducto(idSucursalXProducto, idSucursal, idProducto, cantidad, cantidadMin, cantidadMax, fechaProduccion, fechaExpiracion, estado) 
+VALUES (1, 1, 1, 15, 5, 50, "2022-05-01", "2022-12-17", 1);
+select * from SucursalXProducto;
+
 CALL updateProvincia (2, "Colon", null);
-SELECT * from provincia
+SELECT * from provincia;
+
+CALL readEncargoXProducto (1);
+
+INSERT INTO EncargoXProducto(idEncargoXProducto, idProducto, idEncargo, cantidad, precio) 
+VALUES (1, 1, 1, 15, 23650);
+select * from EncargoXProducto;
+
+CALL readPromocion (1);
+
+INSERT INTO promocion(fechaInicial, fechaFinal, porcentajeDesc, idProducto) 
+VALUES ("2022-11-12", "2022-11-30", 1.1, 1);
+select * from promocion;
+
+CALL readProductoXProveedor (1);
+
+INSERT INTO productoXProveedor(idProductoXProveedor, idProducto, idProveedor, existencias, fechaProduccion, fechaExpiracion) 
+VALUES (1, 1, 1, 500, "2022-05-31", "2022-12-12");
+select * from productoXProveedor;
+
+CALL readDetalle (1);
+
+INSERT INTO Detalle(cantidad, idPedido, idProducto) VALUES (50, 1, 1);
+select * from Producto;
+
+CALL readProducto (1);
+
+INSERT INTO Producto(nombreProducto, idCategoria) VALUES ("Leche", 1);
+select * from Producto;
+
+CALL readPedido (3);
+
+INSERT INTO Pedido(fecha, idCliente, idTipoPago) VALUES ("2022-11-12", 1, 1);
+select * from Pedido;
+
+CALL readCategoria (1);
+
+INSERT INTO Categoria(descripcion, idImpuesto) VALUES ("Lacteo", 1);
+select * from Categoria;
+
+CALL readImpuesto (1);
+
+INSERT INTO Impuesto(descripcion, porcImpuesto) VALUES ("IVA", 13);
+select * from Impuesto;
+
+
 
 
 
