@@ -706,6 +706,7 @@ BEGIN
 	END IF;
 	SELECT message AS resultado;
 END;
+$$
 
 #CREATE EncargoXProducto
 DROP PROCEDURE IF EXISTS createEncargoXProducto;
