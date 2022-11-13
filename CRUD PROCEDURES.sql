@@ -1,13 +1,60 @@
-#USE proyectoBases;
-USE proyectoBasesmel;
+USE proyectoBases;
+
 #PROCEDURES-----------------------------------------------------------------------------------------
+DROP PROCEDURE IF EXISTS createPais;
+DROP PROCEDURE IF EXISTS deletePais;
+DROP PROCEDURE IF EXISTS createProvincia;
+DROP PROCEDURE IF EXISTS deleteProvincia;
+DROP PROCEDURE IF EXISTS createCanton;
+DROP PROCEDURE IF EXISTS deleteCanton;
+DROP PROCEDURE IF EXISTS createGerenteGeneral;
+DROP PROCEDURE IF EXISTS deleteGerenteGeneral;
+DROP PROCEDURE IF EXISTS createSucursal;
+DROP PROCEDURE IF EXISTS deleteSucursal;
+DROP PROCEDURE IF EXISTS createCargo;
+DROP PROCEDURE IF EXISTS deleteCargo;
+DROP PROCEDURE IF EXISTS createEmpleado;
+DROP PROCEDURE IF EXISTS deleteEmpleado;
+DROP PROCEDURE IF EXISTS createBono;
+DROP PROCEDURE IF EXISTS deleteBono;
+DROP PROCEDURE IF EXISTS createEncargo;
+DROP PROCEDURE IF EXISTS deleteEncargo;
+DROP PROCEDURE IF EXISTS createImpuesto;
+DROP PROCEDURE IF EXISTS deleteImpuesto;
+DROP PROCEDURE IF EXISTS createCategoria;
+DROP PROCEDURE IF EXISTS deleteCategoria;
+DROP PROCEDURE IF EXISTS createProveedor;
+DROP PROCEDURE IF EXISTS deleteProveedor;
+DROP PROCEDURE IF EXISTS createTipoPago;
+DROP PROCEDURE IF EXISTS deleteTipoPago;
+DROP PROCEDURE IF EXISTS createCliente;
+DROP PROCEDURE IF EXISTS deleteCliente;
+DROP PROCEDURE IF EXISTS createProducto;
+DROP PROCEDURE IF EXISTS deleteProducto;
+DROP PROCEDURE IF EXISTS createPromocion;
+DROP PROCEDURE IF EXISTS deletePromocion;
+DROP PROCEDURE IF EXISTS createPedido;
+DROP PROCEDURE IF EXISTS deletePedido;
+DROP PROCEDURE IF EXISTS createDetalle;
+DROP PROCEDURE IF EXISTS deleteDetalle;
+DROP PROCEDURE IF EXISTS createEncargoXProducto;
+DROP PROCEDURE IF EXISTS deleteEncargoXProducto;
+DROP PROCEDURE IF EXISTS createProductoXProveedor;
+DROP PROCEDURE IF EXISTS deleteProductoXProveedor;
+DROP PROCEDURE IF EXISTS createSucursalXProducto;
+DROP PROCEDURE IF EXISTS deleteSucursalXProducto;
+DROP PROCEDURE IF EXISTS createTarjeta;
+DROP PROCEDURE IF EXISTS deleteTarjeta;
+DROP PROCEDURE IF EXISTS createCheque;
+DROP PROCEDURE IF EXISTS deleteCheque;
+DROP PROCEDURE IF EXISTS createCriptomoneda;
+DROP PROCEDURE IF EXISTS deleteCriptomoneda;
 
 #------------------------------CRUDS--------------------------------
 /*------------------------------------------------------------------
 1 - Procedimientos para crud de la tabla país
 ------------------------------------------------------------------*/
 #CREATE-------------------------------------------------------------
-DROP PROCEDURE IF EXISTS createPais;
 DELIMITER $$
 CREATE PROCEDURE createPais (nombreV VARCHAR(30))
 BEGIN
@@ -28,7 +75,6 @@ END;
 $$
 
 #DELETE-------------------------------------------------------------
-DROP PROCEDURE IF EXISTS deletePais;
 DELIMITER $$
 CREATE PROCEDURE deletePais (idPaisV INT)
 BEGIN
@@ -53,7 +99,6 @@ $$
 2 - Procedimientos para crud de la tabla Provincia
 ------------------------------------------------------------------*/
 #CREATE-------------------------------------------------------------
-DROP PROCEDURE IF EXISTS createProvincia;
 DELIMITER $$
 CREATE PROCEDURE createProvincia (nombreV VARCHAR(30), idPaisV INT, nombrePaisV VARCHAR(30))
 BEGIN
@@ -78,7 +123,6 @@ END;
 $$
 
 #DELETE-------------------------------------------------------------
-DROP PROCEDURE IF EXISTS deleteProvincia;
 DELIMITER $$
 CREATE PROCEDURE deleteProvincia (idProvinciaV INT)
 BEGIN
@@ -103,7 +147,6 @@ $$
 3 - Procedimientos para crud de la tabla Cantón
 ------------------------------------------------------------------*/
 #CREATE-------------------------------------------------------------
-DROP PROCEDURE IF EXISTS createCanton;
 DELIMITER $$
 CREATE PROCEDURE createCanton (nombreV VARCHAR(30), idProvinciaV VARCHAR(30))
 BEGIN
@@ -125,7 +168,6 @@ BEGIN
 END;
 $$
 #DELETE-------------------------------------------------------------
-DROP PROCEDURE IF EXISTS deleteCanton;
 DELIMITER $$
 CREATE PROCEDURE deleteCanton (idCantonV INT)
 BEGIN
@@ -150,7 +192,6 @@ $$
 4 - Procedimientos para crud de la tabla país
 ------------------------------------------------------------------*/
 #CREATE-------------------------------------------------------------
-DROP PROCEDURE IF EXISTS createGerenteGeneral;
 DELIMITER $$
 CREATE PROCEDURE createGerenteGeneral (nombreV VARCHAR(30), telefonoV VARCHAR(13), salarioBase DECIMAL(15,2))
 BEGIN
@@ -167,7 +208,6 @@ BEGIN
 END;
 $$
 #DELETE-------------------------------------------------------------
-DROP PROCEDURE IF EXISTS deleteGerenteGeneral;
 DELIMITER $$
 CREATE PROCEDURE deleteGerenteGeneral (idGerenteGeneralV INT)
 BEGIN
@@ -192,7 +232,6 @@ $$
 5 - Procedimientos para crud de la tabla Sucursal
 ------------------------------------------------------------------*/
 #CREATE-------------------------------------------------------------
-DROP PROCEDURE IF EXISTS createSucursal;
 DELIMITER $$
 CREATE PROCEDURE createSucursal (nombreV VARCHAR(30), direccionV VARCHAR(30),
 								idCantonV INT, idGerenteGeneralV INT)
@@ -218,7 +257,6 @@ BEGIN
 END;
 $$
 #DELETE-------------------------------------------------------------
-DROP PROCEDURE IF EXISTS deleteSucursal;
 DELIMITER $$
 CREATE PROCEDURE deleteSucursal (idSucursalV INT)
 BEGIN
@@ -243,7 +281,6 @@ $$
 6 - Procedimientos para crud de la tabla Cargo
 ------------------------------------------------------------------*/
 #CREATE-------------------------------------------------------------
-DROP PROCEDURE IF EXISTS createCargo;
 DELIMITER $$
 CREATE PROCEDURE createCargo (descripcionV VARCHAR(30))
 BEGIN
@@ -261,7 +298,6 @@ BEGIN
 END;
 $$
 #DELETE-------------------------------------------------------------
-DROP PROCEDURE IF EXISTS deleteCargo;
 DELIMITER $$
 CREATE PROCEDURE deleteCargo (idCargoV INT)
 BEGIN
@@ -280,12 +316,11 @@ BEGIN
 	END IF;
     SELECT message AS Resultado;
 END;
-
+$$
 /*------------------------------------------------------------------
 7 - Procedimientos para crud de la tabla Empleado
 ------------------------------------------------------------------*/
 #CREATE-------------------------------------------------------------
-DROP PROCEDURE IF EXISTS createEmpleado;
 DELIMITER $$
 CREATE PROCEDURE createEmpleado (nombreV VARCHAR(30), fechaContratacionV DATE, 
 								salarioBaseV DECIMAL(15,2),idSucursalV INT, idCargoV INT)
@@ -312,7 +347,6 @@ BEGIN
 END;
 $$
 #DELETE-------------------------------------------------------------
-DROP PROCEDURE IF EXISTS deleteEmpleado;
 DELIMITER $$
 CREATE PROCEDURE deleteEmpleado (idEmpleadoV INT)
 BEGIN
@@ -337,7 +371,6 @@ $$
 8 - Procedimientos para crud de la tabla Bono
 ------------------------------------------------------------------*/
 #CREATE-------------------------------------------------------------
-DROP PROCEDURE IF EXISTS createBono;
 DELIMITER $$
 CREATE PROCEDURE createBono (montoV DECIMAL(15,2), fechaV DATE, idEmpleadoV INT)
 BEGIN
@@ -360,7 +393,6 @@ BEGIN
 END;
 $$
 #DELETE-------------------------------------------------------------
-DROP PROCEDURE IF EXISTS deleteBono;
 DELIMITER $$
 CREATE PROCEDURE  deleteBono(idBonoV INT)
 BEGIN
@@ -385,7 +417,6 @@ $$
 9 - Procedimientos para crud de la tabla 
 ------------------------------------------------------------------*/
 #CREATE-------------------------------------------------------------
-DROP PROCEDURE IF EXISTS createEncargo;
 DELIMITER $$
 CREATE PROCEDURE createEncargo (fechaV DATE, idSucursalV INT)
 BEGIN
@@ -406,7 +437,6 @@ BEGIN
 END;
 $$
 #DELETE-------------------------------------------------------------
-DROP PROCEDURE IF EXISTS deleteEncargo;
 DELIMITER $$
 CREATE PROCEDURE deleteEncargo (idEncargoV INT)
 BEGIN
@@ -432,7 +462,6 @@ $$
 ------------------------------------------------------------------*/
 #CREATE-------------------------------------------------------------
 #CREATE IMPUESTO
-DROP PROCEDURE IF EXISTS createImpuesto;
 DELIMITER $$
 CREATE PROCEDURE createImpuesto (descripcionV VARCHAR(30), porcImpuestoV DECIMAL(5,2))
 BEGIN
@@ -451,7 +480,6 @@ BEGIN
 END;
 $$
 #DELETE-------------------------------------------------------------
-DROP PROCEDURE IF EXISTS deleteImpuesto;
 DELIMITER $$
 CREATE PROCEDURE deleteImpuesto (idImpuestoV INT)
 BEGIN
@@ -476,7 +504,6 @@ $$
 11 - Procedimientos para crud de la tabla Categoria
 ------------------------------------------------------------------*/
 #CREATE-------------------------------------------------------------
-DROP PROCEDURE IF EXISTS createCategoria;
 DELIMITER $$
 CREATE PROCEDURE createCategoria ( descripcionV VARCHAR(30),idImpuestoV INT)
 BEGIN
@@ -497,7 +524,6 @@ BEGIN
 END;
 $$
 #DELETE-------------------------------------------------------------
-DROP PROCEDURE IF EXISTS deleteCategoria;
 DELIMITER $$
 CREATE PROCEDURE deleteCategoria (idCategoriaV INT)
 BEGIN
@@ -522,7 +548,6 @@ $$
 12 - Procedimientos para crud de la tabla Proveedor
 ------------------------------------------------------------------*/
 #CREATE-------------------------------------------------------------
-DROP PROCEDURE IF EXISTS createProveedor;
 DELIMITER $$
 CREATE PROCEDURE createProveedor (nombreV VARCHAR(30), telefonoV VARCHAR(13), porcGananciaV DECIMAL(5,2))
 BEGIN
@@ -543,7 +568,6 @@ BEGIN
 END;
 $$
 #DELETE-------------------------------------------------------------
-DROP PROCEDURE IF EXISTS deleteProveedor;
 DELIMITER $$
 CREATE PROCEDURE deleteProveedor (idProveedorV INT)
 BEGIN
@@ -568,7 +592,6 @@ $$
 13 - Procedimientos para crud de la tabla TipoPago
 ------------------------------------------------------------------*/
 #CREATE-------------------------------------------------------------
-DROP PROCEDURE IF EXISTS createTipoPago;
 DELIMITER $$
 CREATE PROCEDURE createTipoPago (descripcionV VARCHAR(30))
 BEGIN
@@ -587,7 +610,6 @@ BEGIN
 END;
 $$
 #DELETE-------------------------------------------------------------
-DROP PROCEDURE IF EXISTS deleteTipoPago;
 DELIMITER $$
 CREATE PROCEDURE deleteTipoPago (idTipoPagoV INT)
 BEGIN
@@ -612,8 +634,6 @@ $$
 14 - Procedimientos para crud de la tabla Cliente
 ------------------------------------------------------------------*/
 #CREATE-------------------------------------------------------------
-#CREATE Cliente
-DROP PROCEDURE IF EXISTS createCliente;
 DELIMITER $$
 CREATE PROCEDURE createCliente (nombreV VARCHAR(30), telefonoV VARCHAR(13), correoV VARCHAR(30),
 								direccionV VARCHAR(30), idCantonV INT)
@@ -636,7 +656,6 @@ BEGIN
 END;
 $$
 #DELETE-------------------------------------------------------------
-DROP PROCEDURE IF EXISTS deleteCliente;
 DELIMITER $$
 CREATE PROCEDURE deleteCliente (idClienteV INT)
 BEGIN
@@ -660,7 +679,6 @@ $$
 15 - Procedimientos para crud de la tabla Producto
 ------------------------------------------------------------------*/
 #CREATE-------------------------------------------------------------
-DROP PROCEDURE IF EXISTS createProducto;
 DELIMITER $$
 CREATE PROCEDURE createProducto (nombreV VARCHAR(30), idCategoriaV INT)
 BEGIN
@@ -681,7 +699,6 @@ BEGIN
 END;
 $$
 #DELETE-------------------------------------------------------------
-DROP PROCEDURE IF EXISTS deleteProducto;
 DELIMITER $$
 CREATE PROCEDURE deleteProducto (idProductoV INT)
 BEGIN
@@ -706,7 +723,6 @@ $$
 16 - Procedimientos para crud de la tabla Promocion
 ------------------------------------------------------------------*/
 #CREATE-------------------------------------------------------------
-DROP PROCEDURE IF EXISTS createPromocion;
 DELIMITER $$
 CREATE PROCEDURE createPromocion (fechaInicialV DATE, fechaFinalV DATE, 
 								  porcDescuentoV DECIMAL(5,2), idProductoV INT)
@@ -731,7 +747,6 @@ BEGIN
 END;			
 $$
 #DELETE-------------------------------------------------------------
-DROP PROCEDURE IF EXISTS deletePromocion;
 DELIMITER $$
 CREATE PROCEDURE deletePromocion (idPromocionV INT)
 BEGIN
@@ -755,7 +770,6 @@ $$
 17 - Procedimientos para crud de la tabla Pedido
 ------------------------------------------------------------------*/
 #CREATE-------------------------------------------------------------
-DROP PROCEDURE IF EXISTS createPedido;
 DELIMITER $$
 CREATE PROCEDURE createPedido (fechaV DATE, idTipoPagoV INT, idClienteV INT)
 BEGIN
@@ -776,21 +790,20 @@ BEGIN
 END;
 $$
 #DELETE-------------------------------------------------------------
-DROP PROCEDURE IF EXISTS deleteX;
 DELIMITER $$
-CREATE PROCEDURE X (idX INT)
+CREATE PROCEDURE deletePedido (idPedidoV INT)
 BEGIN
 	DECLARE message VARCHAR(60);
     #Manejo de error- fk de otras tablas
 	DECLARE EXIT HANDLER FOR 1451 
-		SELECT "ERROR- No se puede borrar el X" AS Resultado;
+		SELECT "ERROR- No se puede borrar el Pedido" AS Resultado;
     
-    IF (idX IS NULL) THEN
+    IF (idPedidoV IS NULL) THEN
 		SET message = "ERROR - No puede ingresar datos NULL";
-	ELSEIF (SELECT COUNT(*) FROM X WHERE idX = idX) = 0 THEN
-		SET message = "ERROR - No existe un X con el id ingresado ";
+	ELSEIF (SELECT COUNT(*) FROM Pedido WHERE idPedido = idPedidoV) = 0 THEN
+		SET message = "ERROR - No existe un Pedido con el id ingresado ";
 	ELSE
-		DELETE FROM X WHERE idX = idX;
+		DELETE FROM Pedido WHERE idPedido = idPedidoV;
 		SET message = "Se ha borrado con éxito";
 	END IF;
     SELECT message AS Resultado;
@@ -800,7 +813,6 @@ $$
 18 - Procedimientos para crud de la tabla Detalle
 ------------------------------------------------------------------*/
 #CREATE-------------------------------------------------------------
-DROP PROCEDURE IF EXISTS createDetalle;
 DELIMITER $$
 CREATE PROCEDURE createDetalle (cantidadV INT, idPedidoV INT, idProductoV INT)
 BEGIN
@@ -823,7 +835,6 @@ BEGIN
 END;
 $$
 #DELETE-------------------------------------------------------------
-DROP PROCEDURE IF EXISTS deleteDetalle;
 DELIMITER $$
 CREATE PROCEDURE deleteDetalle (idDetalleV INT)
 BEGIN
@@ -847,7 +858,6 @@ $$
 19 - Procedimientos para crud de la tabla EncargoXProducto
 ------------------------------------------------------------------*/
 #CREATE-------------------------------------------------------------
-DROP PROCEDURE IF EXISTS createEncargoXProducto;
 DELIMITER $$
 CREATE PROCEDURE createEncargoXProducto (idEncargoV INT, idProductoV INT, cantidadV INT, precioV DECIMAL(15,2))
 BEGIN
@@ -871,7 +881,6 @@ BEGIN
 END;
 $$
 #DELETE-------------------------------------------------------------
-DROP PROCEDURE IF EXISTS deleteEncargoXProducto;
 DELIMITER $$
 CREATE PROCEDURE deleteEncargoXProducto (idEncargoXProductoV INT)
 BEGIN
@@ -895,7 +904,6 @@ $$
 20 - Procedimientos para crud de la tabla ProductoXProveedor
 ------------------------------------------------------------------*/
 #CREATE-------------------------------------------------------------
-DROP PROCEDURE IF EXISTS createProductoXProveedor;
 DELIMITER $$
 CREATE PROCEDURE createProductoXProveedor (idProductoV INT, idProveedorV INT,
 											existenciasV INT, fechaProduccionV DATE,
@@ -923,7 +931,6 @@ BEGIN
 END;
 $$
 #DELETE-------------------------------------------------------------
-DROP PROCEDURE IF EXISTS deleteProductoXProveedor;
 DELIMITER $$
 CREATE PROCEDURE deleteProductoXProveedor (idProductoXProveedorV INT)
 BEGIN
@@ -947,7 +954,6 @@ $$
 21 - Procedimientos para crud de la tabla SucursalXProducto
 ------------------------------------------------------------------*/
 #CREATE-------------------------------------------------------------
-DROP PROCEDURE IF EXISTS createSucursalXProducto;
 DELIMITER $$
 CREATE PROCEDURE createSucursalXProducto (idSucursalV INT, idProductoV INT, cantidadV INT,
 										  cantidadMinV INT, cantidadMaxV INT, fechaProduccionV DATE,
@@ -983,7 +989,6 @@ BEGIN
 END;
 $$
 #DELETE-------------------------------------------------------------
-DROP PROCEDURE IF EXISTS deleteSucursalXProducto;
 DELIMITER $$
 CREATE PROCEDURE deleteSucursalXProducto (idSucursalXProductoV INT)
 BEGIN
@@ -1007,7 +1012,6 @@ $$
 22 - Procedimientos para crud de la tabla Tarjeta
 ------------------------------------------------------------------*/
 #CREATE-------------------------------------------------------------
-DROP PROCEDURE IF EXISTS createTarjeta;
 DELIMITER $$
 CREATE PROCEDURE createTarjeta (numTarjetaV VARCHAR(16), ccvV INT, tipoV VARCHAR(15),
 								fechaCaducidadV DATE, idClienteV INT)
@@ -1035,7 +1039,6 @@ BEGIN
 END;
 $$
 #DELETE-------------------------------------------------------------
-DROP PROCEDURE IF EXISTS deleteTarjeta;
 DELIMITER $$
 CREATE PROCEDURE deleteTarjeta (idTarjetaV INT)
 BEGIN
@@ -1059,7 +1062,6 @@ $$
 23 - Procedimientos para crud de la tabla Cheque
 ------------------------------------------------------------------*/
 #CREATE-------------------------------------------------------------
-DROP PROCEDURE IF EXISTS createCheque;
 DELIMITER $$
 CREATE PROCEDURE createCheque (numChequeV VARCHAR(9), rutaBancariaV VARCHAR(23), 
 								fechaAperturaV DATE, cuentaBancariaV VARCHAR(20), 
@@ -1083,7 +1085,6 @@ BEGIN
 END;
 $$
 #DELETE-------------------------------------------------------------
-DROP PROCEDURE IF EXISTS deleteCheque;
 DELIMITER $$
 CREATE PROCEDURE deleteCheque (idChequeV INT)
 BEGIN
@@ -1107,7 +1108,6 @@ $$
 24 - Procedimientos para crud de la tabla Criptomoneda
 ------------------------------------------------------------------*/
 #CREATE-------------------------------------------------------------
-DROP PROCEDURE IF EXISTS createCriptomoneda;
 DELIMITER $$
 CREATE PROCEDURE createCriptomoneda (direccionCriptoV VARCHAR(30), tipoV VARCHAR(15), idClienteV INT)
 BEGIN
@@ -1128,7 +1128,6 @@ BEGIN
 END;
 $$
 #DELETE-------------------------------------------------------------
-DROP PROCEDURE IF EXISTS deleteCriptomoneda;
 DELIMITER $$
 CREATE PROCEDURE deleteCriptomoneda (idCriptomonedaV INT)
 BEGIN
