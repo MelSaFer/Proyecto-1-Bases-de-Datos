@@ -181,7 +181,7 @@ CREATE TABLE SucursalXProducto (
         cantidadMax INT NOT NULL,
         fechaProduccion DATE NOT NULL,
         fechaExpiracion DATE NOT NULL,
-		estado INT NOT NULL  #Para saber si el producto vencio, esta en promo...
+		estado VARCHAR(30) NOT NULL  #Para saber si el producto vencio, esta en promo...
 );
 #-------------------------------------------------
 DROP TABLE IF EXISTS Encargo;

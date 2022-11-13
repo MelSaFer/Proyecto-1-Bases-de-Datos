@@ -1927,7 +1927,7 @@ $$
 DELIMITER $$
 CREATE PROCEDURE createSucursalXProducto (idSucursalV INT, idProductoV INT, cantidadV INT,
 										  cantidadMinV INT, cantidadMaxV INT, fechaProduccionV DATE,
-                                          fechaExpiracionV DATE, estadoV INT)
+                                          fechaExpiracionV DATE, estadoV VARCHAR(30))
 BEGIN
 	DECLARE message VARCHAR(90);
     
@@ -1979,7 +1979,7 @@ $$
 #UPDATE-------------------------------------------------------------
 DELIMITER $$
 CREATE PROCEDURE updateSucursalXProducto (idSucursalXProductoV INT, newIdSucursal INT, newIdProducto INT, newCantidad INT,
-				newCantidadMin INT, newCantidadMax INT, newFechaProduccion DATE, newFechaExpiracion DATE, newEstado int)
+				newCantidadMin INT, newCantidadMax INT, newFechaProduccion DATE, newFechaExpiracion DATE, newEstado VARCHAR(30))
 BEGIN
 	DECLARE message VARCHAR(80);
     
