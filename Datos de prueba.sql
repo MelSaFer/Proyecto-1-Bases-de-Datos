@@ -48,7 +48,13 @@ CALL createSucursalXProducto (1, 1, 10, 10, 50, "2003-8-9", "2004-7-10", 1);
 CALL CreateTarjeta("123", "123", "DEBITO", "2023-9-3", 1);
 CALL CreateCheque("123", "167993", "2022-12-11", "ahsjks", 1);
 CALL CreateCriptoMONEDA("ahjkdd","no see", 1 );
-
+CALL createSucursalXProducto (1, 1, 10, 10, 50, "2003-8-9", "2020-7-10", "En Mostrador");
+CALL createSucursalXProducto (1, 1, 10, 10, 50, "2003-8-9", "2022-11-15", "En Mostrador");
+CALL revisarProductosSucursal(4);
+SELECT * FROM Promocion;
+select * from producto;
+select * from sucursalxproducto;
+DELETE FROM Promocion where idProducto = 1;
 
 CALL DeleteCanton(2);
 CALL DeleteGerenteGeneral(2);
