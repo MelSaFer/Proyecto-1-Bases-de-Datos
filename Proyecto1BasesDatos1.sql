@@ -43,7 +43,15 @@ CREATE TABLE Pedido (
         fecha DATE NOT NULL,
         idCliente INT NOT NULL,
         idTipoPago INT NOT NULL,
-        idEmpleado INT NOT NULL
+        idEmpleado INT NOT NULL,
+        idTipoEnvio INT NOT NULL
+);
+#-------------------------------------------------
+DROP TABLE IF EXISTS TipoEnvio;
+CREATE TABLE TipoEnvio (
+		idTipoEnvio INT PRIMARY KEY AUTO_INCREMENT,
+        descripcion VARCHAR(10) NOT NULL,
+        porcentajeAdicional DECIMAL(5,2) NOT NULL
 );
 #-------------------------------------------------
 DROP TABLE IF EXISTS Producto;
@@ -135,7 +143,8 @@ CREATE TABLE Cliente (
         telefono VARCHAR(13) NOT NULL,
         correo VARCHAR(30) NOT NULL,
         direccion VARCHAR(30) NOT NULL,
-        idCanton INT NOT NULL
+        idCanton INT NOT NULL,
+        idSucursal INT NOT NULL
 );
 #-------------------------------------------------
 DROP TABLE IF EXISTS tipoPago;
@@ -190,16 +199,10 @@ DROP TABLE IF EXISTS Encargo;
 CREATE TABLE Encargo (
 		idEncargo INT PRIMARY KEY AUTO_INCREMENT,
 		fecha DATE NOT NULL,
-		idSucursal INT NOT NULL
-);
-#-------------------------------------------------
-DROP TABLE IF EXISTS EncargoXProducto;
-CREATE TABLE EncargoXProducto (
-		idEncargoXProducto INT PRIMARY KEY AUTO_INCREMENT,
-		idProducto INT NOT NULL,
-        idEncargo INT NOT NULL,
-        cantidad INT NOT NULL,
-        precio DECIMAL(15,2) NOT NULL
+		idSucursal INT NOT NULL,
+        cantidad INT NULL,
+        idProducto INT NOT NULL, 
+        idProveedor INT NOT NULL
 );
 #-------------------------------------------------
 DROP TABLE IF EXISTS ProductoXProveedor;
@@ -234,14 +237,16 @@ ALTER TABLE Producto ADD CONSTRAINT ProductoXCategoria_fk FOREIGN KEY(idCategori
 ALTER TABLE Pedido ADD CONSTRAINT PedidoXTipoPago_fk FOREIGN KEY(idTipoPago) REFERENCES tipoPago(idTipoPago);
 ALTER TABLE Pedido ADD CONSTRAINT PedidoXCliente_fk FOREIGN KEY(idCliente) REFERENCES Cliente(idCliente);
 ALTER TABLE Pedido ADD CONSTRAINT PedidoXEmpleado_fk FOREIGN KEY(idEmpleado) REFERENCES Empleado(idEmpleado);
+ALTER TABLE Pedido ADD CONSTRAINT PedidoXTipoEnvio_fk FOREIGN KEY(idTipoEnvio) REFERENCES TipoEnvio(idTipoEnvio);
 ALTER TABLE Tarjeta ADD CONSTRAINT TarjetaXCliente_fk FOREIGN KEY(idCliente) REFERENCES Cliente(idCliente);
 ALTER TABLE Criptomoneda ADD CONSTRAINT CriptomonedaXCliente_fk FOREIGN KEY(idCliente) REFERENCES Cliente(idCliente);
 ALTER TABLE Cheque ADD CONSTRAINT ChequeXCliente_fk FOREIGN KEY(idCliente) REFERENCES Cliente(idCliente);
 ALTER TABLE Cliente ADD CONSTRAINT ClienteXCanton_fk FOREIGN KEY(idCanton) REFERENCES Canton(idCanton);
+ALTER TABLE Cliente ADD CONSTRAINT ClienteXSucursal_fk FOREIGN KEY(idSucursal) REFERENCES Sucursal(idSucursal);
 ALTER TABLE Encargo ADD CONSTRAINT EncargoXSucursal_fk FOREIGN KEY(idSucursal) REFERENCES Sucursal(idSucursal);
+ALTER TABLE Encargo ADD CONSTRAINT EncargoXProducto_fk FOREIGN KEY(idProducto) REFERENCES Producto(idProducto);
+ALTER TABLE Encargo ADD CONSTRAINT EncargoXProveedor_fk FOREIGN KEY(idProveedor) REFERENCES Proveedor(idProveedor);
 ALTER TABLE Bono ADD CONSTRAINT BonoXEmpleado_fk FOREIGN KEY(idEmpleado) REFERENCES Empleado(idEmpleado); #888888888888888
-ALTER TABLE EncargoXProducto ADD CONSTRAINT EncargoXProducto_XEncargo_fk FOREIGN KEY(idEncargo) REFERENCES Encargo(idEncargo);
-ALTER TABLE EncargoXProducto ADD CONSTRAINT EncargoXProducto_XProducto_fk FOREIGN KEY(idProducto) REFERENCES Producto(idProducto);
 ALTER TABLE ProductoXProveedor ADD CONSTRAINT ProductoXProveedor_XProducto_fk FOREIGN KEY(idProducto) REFERENCES Producto(idProducto);
 ALTER TABLE ProductoXProveedor ADD CONSTRAINT ProductoXProveedor_XProveedor_fk FOREIGN KEY(idProveedor) REFERENCES Proveedor(idProveedor);
 ALTER TABLE Categoria ADD CONSTRAINT CategoriaXImpuesto_fk FOREIGN KEY(idImpuesto) REFERENCES Impuesto(idImpuesto);

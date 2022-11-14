@@ -47,9 +47,9 @@ $$
 ENTRADAS: Nombre del producto o nombre de proveedor
 SALIDAS: 
 ------------------------------------------------------------------*/
-DROP PROCEDURE IF EXISTS cosultaProveedores;
+DROP PROCEDURE IF EXISTS consultarProveedores;
 DELIMITER $$
-CREATE PROCEDURE cosultaProveedores (nombreProductoV VARCHAR(30),
+CREATE PROCEDURE consultarProveedores (nombreProductoV VARCHAR(30),
 									 nombreProveedorV VARCHAR(30))
 BEGIN
 	SELECT Proveedor.nombre, Proveedor.telefono, Proveedor.porcGanancia,
@@ -106,6 +106,7 @@ BEGIN
 	END LOOP bucle;
     CLOSE cursorPromo;
 END;
+$$
 
 /*------------------------------------------------------------------
 5 -  Procedimiento para hacer el pedido del producto a los 
@@ -138,6 +139,7 @@ BEGIN
         
 	END IF;
 END;
+$$
 /*------------------------------------------------------------------
 N -  
 ENTRADAS: 
