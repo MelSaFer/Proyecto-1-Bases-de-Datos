@@ -82,7 +82,6 @@ BEGIN
 	DECLARE CONTINUE HANDLER FOR NOT FOUND SET resultadoV = 1;
     
     OPEN cursorPromo;
-    
     bucle: LOOP
 		FETCH cursorPromo INTO idSucursalXProductoV, idProductoV, 
 			fechaExpiracionV, estadoV;
@@ -107,11 +106,50 @@ BEGIN
 	END LOOP bucle;
     CLOSE cursorPromo;
 END;
+
+/*------------------------------------------------------------------
+5 -  Procedimiento para hacer el pedido del producto a los 
+	proveedores, buscando llegar a la máxima cantidad en el
+    inventario, se busca el proveedor que tengo el producto más 
+    barato y con existencias 
+ENTRADAS: El id de la sucursal, id del producto  
+SALIDAS: 
+------------------------------------------------------------------*/
+DROP PROCEDURE hacerPedidoProveedor;
+DELIMITER $$
+CREATE PROCEDURE hacerPedidoProveedor ( idSucursalV INT, idProductoV INT)
+BEGIN
+	DECLARE idProveedorSeleccionado INT;
+    DECLARE sumProductosEnInventario INT;
+    
+    SET sumProductosEnInventario = (SELECT SUM(SucursalXProducto.Cantidad) 
+									FROM SucursalXProducto
+									WHERE SucursalXProducto.idProducto = idProductoV AND 
+									SucursalXProducto.Estado != "Vencido");
+	#IF (idProducto IS NULL)]
+    IF (sumProductosEnInventario < (SELECT idSucursalXProducto
+        WHERE SucursalXProducto.idProducto = idProductoV)) THEN
+        
+        SET idProveedorSeleccionado = (SELECT proveedor.idProveedor FROM proveedor 
+			INNER JOIN  productoxproveedor ON productoxproveedor.idProveedor = proveedor.idProveedor
+			WHERE productoxproveedor.precio = (SELECT MIN(precio) FROM productoxproveedor
+			WHERE idProducto = idProductoV) AND productoXProveedor.idProducto = idProductoV);
+			
+        
+	END IF;
+END;
 /*------------------------------------------------------------------
 N -  
 ENTRADAS: 
 SALIDAS: 
 ------------------------------------------------------------------*/
 
-
-
+SELECT SUM(SucursalXProducto.Cantidad) FROM SucursalXProducto
+	WHERE SucursalXProducto.idProducto = 1 AND 
+    SucursalXProducto.Estado != "Vencido";
+SELECT proveedor.idProveedor FROM proveedor 
+        INNER JOIN  productoxproveedor ON productoxproveedor.idProveedor = proveedor.idProveedor
+        WHERE productoxproveedor.precio = (SELECT MIN(precio) FROM productoxproveedor
+        WHERE idProducto = 1) AND productoxproveedor.idProducto = 1;
+SELECT * FROM PRODUCTO;
+SELECT * FROM productoxproveedor

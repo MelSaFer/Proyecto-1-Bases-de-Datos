@@ -1735,7 +1735,7 @@ BEGIN
 	ELSE
 		INSERT INTO EncargoXProducto(idProducto, idEncargo,cantidad, precio)
 					VALUES(idProductoV, idEncargoV,cantidadV, precioV);
-		SET message = "ERROR - Se ha insertado el EncargoXProducto con éxito";
+		SET message = "Se ha insertado el EncargoXProducto con éxito";
 	END IF;
     SELECT message AS resultado;
 END;
@@ -2100,7 +2100,7 @@ BEGIN
 	ELSE 
 		INSERT INTO Tarjeta (numTarjeta, ccv, tipo, fechaCaducidad, idCliente)
 							VALUES(numTarjetaV, ccvV, tipoV, fechaCaducidadV, idClienteV);
-		SET message = "ERROR - Se ha insertado la tarjeta con éxito";
+		SET message = "Se ha insertado la tarjeta con éxito";
 	END IF;
     SELECT message AS Resultado;	
 END;
@@ -2203,7 +2203,7 @@ BEGIN
 	ELSE
 		INSERT INTO Cheque (numCheque, rutaBancaria, fechaApertura, cuentaBancaria, idCliente)
 				VALUES(numChequeV, rutaBancariaV, fechaAperturaV, cuentaBancariaV, idClienteV);
-		SET message = "ERROR - El cheque se ha agregado exitosamente";
+		SET message = "El cheque se ha agregado exitosamente";
 	END IF;
     SELECT message AS Resultado;	
 END;
