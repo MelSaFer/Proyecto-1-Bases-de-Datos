@@ -42,7 +42,8 @@ CREATE TABLE Pedido (
 		idPedido INT PRIMARY KEY AUTO_INCREMENT,
         fecha DATE NOT NULL,
         idCliente INT NOT NULL,
-        idTipoPago INT NOT NULL
+        idTipoPago INT NOT NULL,
+        idEmpleado INT NOT NULL
 );
 #-------------------------------------------------
 DROP TABLE IF EXISTS Producto;
@@ -181,7 +182,8 @@ CREATE TABLE SucursalXProducto (
         cantidadMax INT NOT NULL,
         fechaProduccion DATE NOT NULL,
         fechaExpiracion DATE NOT NULL,
-		estado VARCHAR(30) NOT NULL  #Para saber si el producto vencio, esta en promo...
+		estado VARCHAR(30) NOT NULL,  #Para saber si el producto vencio, esta en promo...
+        precio DECIMAL(15,2) NOT NULL
 );
 #-------------------------------------------------
 DROP TABLE IF EXISTS Encargo;
@@ -207,7 +209,8 @@ CREATE TABLE ProductoXProveedor (
         idProveedor INT NOT NULL,
         existencias INT NOT NULL,
         fechaProduccion DATE NOT NULL,
-        fechaExpiracion DATE NOT NULL
+        fechaExpiracion DATE NOT NULL,
+        precio DECIMAL(15,2) NOT NULL
 );
 #-------------------------------------------------
 DROP TABLE IF EXISTS Detalle;
@@ -230,6 +233,7 @@ ALTER TABLE Promocion ADD CONSTRAINT PromocionXProducto_fk FOREIGN KEY(idProduct
 ALTER TABLE Producto ADD CONSTRAINT ProductoXCategoria_fk FOREIGN KEY(idCategoria) REFERENCES Categoria(idCategoria);
 ALTER TABLE Pedido ADD CONSTRAINT PedidoXTipoPago_fk FOREIGN KEY(idTipoPago) REFERENCES tipoPago(idTipoPago);
 ALTER TABLE Pedido ADD CONSTRAINT PedidoXCliente_fk FOREIGN KEY(idCliente) REFERENCES Cliente(idCliente);
+ALTER TABLE Pedido ADD CONSTRAINT PedidoXEmpleado_fk FOREIGN KEY(idEmpleado) REFERENCES Empleado(idEmpleado);
 ALTER TABLE Tarjeta ADD CONSTRAINT TarjetaXCliente_fk FOREIGN KEY(idCliente) REFERENCES Cliente(idCliente);
 ALTER TABLE Criptomoneda ADD CONSTRAINT CriptomonedaXCliente_fk FOREIGN KEY(idCliente) REFERENCES Cliente(idCliente);
 ALTER TABLE Cheque ADD CONSTRAINT ChequeXCliente_fk FOREIGN KEY(idCliente) REFERENCES Cliente(idCliente);
