@@ -60,21 +60,16 @@ DROP TABLE IF EXISTS Producto;
 CREATE TABLE Producto (
 		idProducto INT PRIMARY KEY AUTO_INCREMENT,
         nombreProducto VARCHAR(30) NOT NULL,
-        idCategoria INT NOT NULL
-);
-#-------------------------------------------------
-DROP TABLE IF EXISTS Impuesto;
-CREATE TABLE Impuesto(
-		idImpuesto INT PRIMARY KEY AUTO_INCREMENT,
-        descripcion VARCHAR(30) NOT NULL,
-        porcImpuesto DECIMAL(5,2) NOT NULL DEFAULT 0.0
+        idCategoria INT NOT NULL,
+		cantidadMin INT NOT NULL,
+        cantidadMax INT NOT NULL
 );
 #-------------------------------------------------
 DROP TABLE IF EXISTS Categoria;
 CREATE TABLE Categoria(
 		idCategoria INT PRIMARY KEY AUTO_INCREMENT,
         descripcion VARCHAR(30) NOT NULL,
-        idImpuesto INT NOT NULL
+        porcImpuesto DECIMAL(5,2)
 );
 #-------------------------------------------------
 DROP TABLE IF EXISTS Proveedor;
@@ -135,7 +130,7 @@ CREATE TABLE Promocion (
         fechaInicial DATE NOT NULL,
         fechaFinal DATE NOT NULL,
         porcentajeDesc DECIMAL(5,2) NOT NULL,
-        idProducto INT NOT NULL
+        idLote INT NOT NULL
 );
 #-------------------------------------------------
 DROP TABLE IF EXISTS Cliente;
@@ -189,14 +184,12 @@ CREATE TABLE Cheque (
         idCliente INT NOT NULL
 );
 #-------------------------------------------------
-DROP TABLE IF EXISTS SucursalXProducto;
-CREATE TABLE SucursalXProducto (
-		idSucursalXProducto INT PRIMARY KEY AUTO_INCREMENT,
+DROP TABLE IF EXISTS Lote;
+CREATE TABLE Lote (
+		idLote INT PRIMARY KEY AUTO_INCREMENT,
         idSucursal INT NOT NULL,
         idProducto INT NOT NULL,
         cantidad INT NOT NULL,
-        cantidadMin INT NOT NULL,
-        cantidadMax INT NOT NULL,
         fechaProduccion DATE NOT NULL,
         fechaExpiracion DATE NOT NULL,
 		estado VARCHAR(30) NOT NULL,  #Para saber si el producto vencio, esta en promo...
@@ -228,6 +221,7 @@ DROP TABLE IF EXISTS Detalle;
 CREATE TABLE Detalle (
 		idDetalle INT PRIMARY KEY AUTO_INCREMENT,
         cantidad INT NOT NULL,
+        costo DECIMAL(15,2) NOT NULL,
         idPedido INT NOT NULL,
         idProducto INT NOT NULL
 );
@@ -240,7 +234,6 @@ ALTER TABLE Canton ADD CONSTRAINT CantonXProvincia_fk FOREIGN KEY(idProvincia) R
 ALTER TABLE Provincia ADD CONSTRAINT ProvinciaXPais_fk FOREIGN KEY(idPais) REFERENCES Pais(idPais);
 ALTER TABLE Empleado ADD CONSTRAINT EmpleadoXSucursal_fk FOREIGN KEY(idSucursal) REFERENCES Sucursal(idSucursal);
 ALTER TABLE Empleado ADD CONSTRAINT EmpleadoXCargo_fk FOREIGN KEY(idCargo) REFERENCES Cargo(idCargo);
-ALTER TABLE Promocion ADD CONSTRAINT PromocionXProducto_fk FOREIGN KEY(idProducto) REFERENCES Producto(idProducto);
 ALTER TABLE Producto ADD CONSTRAINT ProductoXCategoria_fk FOREIGN KEY(idCategoria) REFERENCES Categoria(idCategoria);
 ALTER TABLE Pedido ADD CONSTRAINT PedidoXTipoPago_fk FOREIGN KEY(idTipoPago) REFERENCES tipoPago(idTipoPago);
 ALTER TABLE Pedido ADD CONSTRAINT PedidoXCliente_fk FOREIGN KEY(idCliente) REFERENCES Cliente(idCliente);
@@ -257,13 +250,13 @@ ALTER TABLE Encargo ADD CONSTRAINT EncargoXProveedor_fk FOREIGN KEY(idProveedor)
 ALTER TABLE Bono ADD CONSTRAINT BonoXEmpleado_fk FOREIGN KEY(idEmpleado) REFERENCES Empleado(idEmpleado); #888888888888888
 ALTER TABLE ProductoXProveedor ADD CONSTRAINT ProductoXProveedor_XProducto_fk FOREIGN KEY(idProducto) REFERENCES Producto(idProducto);
 ALTER TABLE ProductoXProveedor ADD CONSTRAINT ProductoXProveedor_XProveedor_fk FOREIGN KEY(idProveedor) REFERENCES Proveedor(idProveedor);
-ALTER TABLE Categoria ADD CONSTRAINT CategoriaXImpuesto_fk FOREIGN KEY(idImpuesto) REFERENCES Impuesto(idImpuesto);
 ALTER TABLE Detalle ADD CONSTRAINT DetalleXPedido_fk FOREIGN KEY(idPedido) REFERENCES Pedido(idPedido);
 ALTER TABLE Detalle ADD CONSTRAINT DetalleXProducto_fk FOREIGN KEY(idProducto) REFERENCES Producto(idProducto);
-ALTER TABLE SucursalXProducto ADD CONSTRAINT SucursalXProducto_XProducto_fk FOREIGN KEY(idProducto) REFERENCES Producto(idProducto);
-ALTER TABLE SucursalXProducto ADD CONSTRAINT SucursalXProducto_XSucursal_fk FOREIGN KEY(idSucursal) REFERENCES Sucursal(idSucursal);
+ALTER TABLE Lote ADD CONSTRAINT Lote_XProducto_fk FOREIGN KEY(idProducto) REFERENCES Producto(idProducto);
+ALTER TABLE Lote ADD CONSTRAINT Lote_XSucursal_fk FOREIGN KEY(idSucursal) REFERENCES Sucursal(idSucursal);
 ALTER TABLE SucursalXCliente ADD CONSTRAINT SucursalXClienteXSucursal_fk FOREIGN KEY(idSucursal) REFERENCES Sucursal(idSucursal);
 ALTER TABLE SucursalXCliente ADD CONSTRAINT SucursalXClienteXCliente_fk FOREIGN KEY(idCliente) REFERENCES Cliente(idCliente);
+ALTER TABLE Promocion ADD CONSTRAINT PromocionXLote_fk FOREIGN KEY(idLote) REFERENCES Lote(idLote);
 #---------------------------------------------------------------------------------------------------
 
 

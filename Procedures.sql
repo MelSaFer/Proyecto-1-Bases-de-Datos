@@ -42,6 +42,7 @@ BEGIN
 END;
 $$
 
+call consultarEmpleados (1,null,1,null,null,null);
 /*------------------------------------------------------------------
 3 -  Consultar Proveedor por nombre de producto o nombre de proveedor
 ENTRADAS: Nombre del producto o nombre de proveedor
@@ -50,17 +51,19 @@ SALIDAS:
 DROP PROCEDURE IF EXISTS consultarProveedores;
 DELIMITER $$
 CREATE PROCEDURE consultarProveedores (nombreProductoV VARCHAR(30),
-									 nombreProveedorV VARCHAR(30))
+                                     nombreProveedorV VARCHAR(30))
 BEGIN
-	SELECT Proveedor.nombre, Proveedor.telefono, Proveedor.porcGanancia,
-		Producto.nombreProducto FROM Proveedor
-	INNER JOIN ProductoXProveedor ON ProductoXProveedor.idProveedor = Proveedor.idProveedor
-    INNER JOIN Producto ON Producto.idProducto = ProductoXProveedor.idProveedor
+    SELECT Proveedor.nombre, Proveedor.telefono, Proveedor.porcGanancia,
+        Producto.nombreProducto FROM Proveedor
+    INNER JOIN ProductoXProveedor ON ProductoXProveedor.idProveedor = Proveedor.idProveedor
+    INNER JOIN Producto ON Producto.idProducto = ProductoXProveedor.idProducto
     WHERE Proveedor.nombre = IFNULL(nombreProveedorV,Proveedor.nombre) 
     AND Producto.nombreProducto = IFNULL(nombreProductoV,Producto.nombreProducto);
 END;
 $$
 
+select * from proveedor
+call consultarProveedores(null, "dos pinos");
 /*------------------------------------------------------------------
 4 -  Procedimiento para revisar los productos que van a expirar y 
 	se ponen en descuento, si está vencido se saca del mostrador
@@ -73,12 +76,12 @@ CREATE PROCEDURE revisarProductosSucursal(porcDescuentoV DECIMAL(5,2))
 SP: BEGIN
 	DECLARE resultadoV INTEGER DEFAULT 0;
     DECLARE estadoV VARCHAR(30);
-    DECLARE idSucursalXProductoV INT;
+    DECLARE idLoteV INT;
     DECLARE idProductoV INT;
     DECLARE fechaExpiracionV DATE;
     
-	DECLARE cursorPromo CURSOR FOR SELECT idSucursalXProducto, idProducto, 
-		fechaExpiracion, estado FROM SucursalXProducto;
+	DECLARE cursorPromo CURSOR FOR SELECT idLote, idProducto, 
+		fechaExpiracion, estado FROM Lote;
 	DECLARE CONTINUE HANDLER FOR NOT FOUND SET resultadoV = 1;
     
     IF (porcDescuentoV IS NULL) THEN
@@ -88,7 +91,7 @@ SP: BEGIN
     
     OPEN cursorPromo;
     bucle: LOOP
-		FETCH cursorPromo INTO idSucursalXProductoV, idProductoV, 
+		FETCH cursorPromo INTO idLoteV, idProductoV, 
 			fechaExpiracionV, estadoV;
             
 		IF resultadoV = 1 THEN
@@ -98,20 +101,22 @@ SP: BEGIN
         IF (fechaExpiracionV >= (SELECT CURDATE()) AND 
 			fechaExpiracionV <= (SELECT DATE_ADD((SELECT CURDATE()), INTERVAL 7 DAY))
             AND estadoV != "En Promocion") THEN
-            UPDATE SucursalXProducto SET estado = "En Promocion" 
-				WHERE idProducto = idProductoV AND idSucursalXProducto = idSucursalXProductoV;
+            UPDATE Lote SET estado = "En Promocion" 
+				WHERE idProducto = idProductoV AND idLote = idLoteV;
 			CALL createPromocion((SELECT CURDATE()), (SELECT DATE_ADD((SELECT CURDATE()), INTERVAL 7 DAY)),
 				porcDescuentoV, idProductoV);
                 SELECT "Se ha puesto en promo";
 		ELSEIF(fechaExpiracionV < (SELECT CURDATE()) AND  estadoV != "Vencido") THEN
-			UPDATE SucursalXProducto SET SucursalXProducto.estado = "Vencido" 
-				WHERE idProducto = idProductoV AND idSucursalXProducto = idSucursalXProductoV;
+			UPDATE Lote SET Lote.estado = "Vencido" 
+				WHERE idProducto = idProductoV AND idLote = idLoteV;
 			 SELECT "Se Vencio:(";
 		END IF;
 	END LOOP bucle;
     CLOSE cursorPromo;
 END;
 $$
+
+call revisarProductosSucursal(0.03);
 
 /*------------------------------------------------------------------
 5 -  Procedimiento para hacer el pedido del producto a los 
@@ -145,14 +150,16 @@ MAIN : BEGIN
 		existencias, fechaProduccion, fechaExpiracion, precio FROM ProductoXProveedor;
 	DECLARE CONTINUE HANDLER FOR NOT FOUND SET resultado_VAR = 1;
     
-    SET sumProductosEnInventario = (SELECT SUM(SucursalXProducto.Cantidad) 
-									FROM SucursalXProducto
-									WHERE SucursalXProducto.idProducto = idProductoV AND 
-									SucursalXProducto.Estado != "Vencido");
-	SET minInv = (SELECT DISTINCT cantidadMin FROM sucursalXProducto
-		WHERE SucursalXProducto.idProducto = idProductoV);
-	SET maxInv = (SELECT DISTINCT cantidadMax FROM sucursalXProducto
-		WHERE SucursalXProducto.idProducto = idProductoV);
+    SET sumProductosEnInventario = (SELECT SUM(Lote.Cantidad) 
+									FROM Lote
+									WHERE Lote.idProducto = idProductoV AND
+                                    Lote.idSucursal = idSucursalV AND
+									Lote.Estado != "Vencido");
+	select sumProductosEnInventario;
+	SET minInv = (SELECT DISTINCT cantidadMin FROM Lote
+		WHERE Lote.idProducto = idProductoV);
+	SET maxInv = (SELECT DISTINCT cantidadMax FROM Lote
+		WHERE Lote.idProducto = idProductoV);
 	#IF (idProducto IS NULL)]
     #SELECT sumProductosEnInventario AS Resultado;
     IF (sumProductosEnInventario <= minInv) THEN
@@ -180,7 +187,7 @@ MAIN : BEGIN
             IF(sumProductosEnInventario + sumadorVendidos) < maxInv AND idProveedor_VAR = idProveedorSeleccionado THEN
 				IF (existencias_VAR >= (maxInv - (sumProductosEnInventario + sumadorVendidos))) THEN
 					SELECT precio_VAR+(precio_VAR*porcGananciaP) AS "2";
-					CALL createSucursalXProducto(idSucursalV, idProductoV, 
+					CALL createLote(idSucursalV, idProductoV, 
                     (maxInv - (sumProductosEnInventario + sumadorVendidos)),
                     minInv, maxInv, fechaProduccion_VAR, fechaExpiracion_VAR, 
                     "En mostrador", (precio_VAR+(precio_VAR*porcGananciaP)));
@@ -192,7 +199,7 @@ MAIN : BEGIN
 					LEAVE bucle;
 				ELSE
 					SELECT precio_VAR+(precio_VAR*porcGananciaP) AS "1";
-					CALL createSucursalXProducto(idSucursalV, idProductoV, existencias_VAR,
+					CALL createLote(idSucursalV, idProductoV, existencias_VAR,
 						minInv, maxInv, fechaProduccion_VAR, fechaExpiracion_VAR, 
 						"En mostrador", (precio_VAR+(precio_VAR*porcGananciaP)));
 					 CALL updateProductoXProveedor(idProductoXProveedor_VAR, NULL, NULL,
@@ -210,7 +217,11 @@ MAIN : BEGIN
 END;
 $$
 
-
+call hacerPedidoProveedor(1, 1);
+select * from proveedor;
+select * from productoXProveedor;
+select * from Lote;
+call updateLote(3,null,null,0,null,null,null,null,"mostrador",null);
 #PROCE. 6
 
 /*------------------------------------------------------------------
@@ -227,11 +238,11 @@ BEGIN
         SELECT "ERROR- El id ingresado no existe";
 	ELSE
 		SELECT Producto.idProducto, Producto.nombreProducto, Categoria. descripcion,
-			SucursalXProducto.cantidad, SucursalXProducto.estado FROM producto
+			Lote.cantidad, Lote.estado FROM producto
 			INNER JOIN Categoria ON Categoria.idCategoria = Producto.idCategoria
-			INNER JOIN SucursalXProducto ON SucursalXProducto.idProducto = Producto.idProducto
-			WHERE SucursalXProducto.estado = "Vencido"
-			AND SucursalXProducto.idSucursal = IFNULL(idSucursal, SucursalXProducto.idSucursal);
+			INNER JOIN Lote ON Lote.idProducto = Producto.idProducto
+			WHERE Lote.estado = "Vencido"
+			AND Lote.idSucursal = IFNULL(idSucursal, Lote.idSucursal);
 	END IF;
 END
 $$
@@ -271,7 +282,7 @@ BEGIN
         IF (SELECT SUM(detalle.cantidad) FROM Empleado
         INNER JOIN Pedido on Empleado.idEmpleado = Pedido.idEmpleado
         INNER JOIN Detalle on Pedido.idPedido = Detalle.idPedido
-        WHERE Pedido.fecha >= curdate()-7) > 10 AND (SELECT cargo.descripcion FROM Empleado INNER JOIN
+        WHERE Pedido.fecha >= curdate()-7) > 100 AND (SELECT cargo.descripcion FROM Empleado INNER JOIN
         Cargo on Empleado.idCargo = cargo.idCargo WHERE Empleado.idEmpleado = idEmpleadoV) = "facturador" THEN
         
         call createBono(100000, curdate(), idEmpleadoV);
@@ -309,7 +320,7 @@ BEGIN
     END IF;
 END
 $$
-
+#---------------------------
 
 DROP PROCEDURE IF EXISTS agregarDetalle;
 DELIMITER $$
@@ -317,7 +328,7 @@ CREATE PROCEDURE agregarDetalle(idPedidoV INT, idProductoV INT, cantidadV INT)
 BEGIN
 
 	DECLARE resultadoV INTEGER DEFAULT 0;
-    DECLARE idSucursalXProductoV INT;
+    DECLARE idLoteV INT;
     DECLARE idSucursalV INT;
     DECLARE idProducto_VAR INT;
     DECLARE cantidad_VAR INT;
@@ -327,8 +338,8 @@ BEGIN
     
     DECLARE idSucursalSeleccionado INT;
     
-    DECLARE cursorSucursalXProducto CURSOR FOR SELECT idSucursalXProducto, 
-    idSucursal, idProducto, cantidad, estado, precio FROM SucursalXProducto;
+    DECLARE cursorLote CURSOR FOR SELECT idLote, 
+    idSucursal, idProducto, cantidad, estado, precio FROM Lote;
 	DECLARE CONTINUE HANDLER FOR NOT FOUND SET resultadoV = 1;
     
     SET idSucursalSeleccionado = (SELECT sucursal.idSucursal FROM Pedido 
@@ -340,35 +351,35 @@ BEGIN
 	
     ELSE 
 	
-		OPEN cursorSucursalXProducto;
+		OPEN cursorLote;
 		bucle: LOOP
-			FETCH cursorSucursalXProducto INTO idSucursalXProductoV, 
+			FETCH cursorLote INTO idLoteV, 
 			idSucursalV, idProducto_VAR, cantidad_VAR, estadoV, precioV;
             
             if((idProducto_VAR = idProductoV) AND estadoV != "vencido" 
             AND cantidad_VAR > 0 AND idSucursalV = idSucursalSeleccionado) THEN
 				
                 IF (cantidad_Var >= cantidadV) THEN
-					CALL updateSucursalXProducto(idSucursalXProductoV, null,
+					CALL updateLote(idLoteV, null,
                     null, cantidad_Var - cantidadV, null, null, null, null, null, null);
                     
                     SET contadorProducto = contadorProducto + cantidadV;
-                    call createDetalle(contadorProducto, idPedidoV, idProductoV);
+                    call createDetalle(contadorProducto, cantidadV * precioV, idPedidoV, idProductoV);
                     LEAVE BUCLE;
 				
                 ELSE
-					CALL updateSucursalXProducto(idSucursalXProductoV, null,
+					CALL updateLote(idLoteV, null,
                     null, 0, null, null, null, null, null, null);
                     
                     SET contadorProducto = contadorProducto + (cantidad_Var);
-                    call createDetalle(cantidad_Var, idPedidoV, idProductoV);
+                    call createDetalle(cantidad_Var, cantidad_Var * precioV, idPedidoV, idProductoV);
 				END IF;
                 
 			END IF;
 			
 
 		END LOOP bucle;
-		CLOSE cursorSucursalXProducto;
+		CLOSE cursorLote;
         
 	END IF;
 END
@@ -406,6 +417,25 @@ BEGIN
 	GROUP BY Producto.idProducto
 	ORDER BY (total) DESC
     LIMIT 3;
+END
+$$
+
+
+/*------------------------------------------------------------------
+N -  Consultar montos recolectados por envíos, fechas, sucursal y/o cliente 
+ENTRADAS: 
+SALIDAS: 
+------------------------------------------------------------------*/
+DROP PROCEDURE IF EXISTS montoEnvios;
+DELIMITER $$
+CREATE PROCEDURE montoEnvios(idTipoEnvioV INT, fechI DATE, fechF DATE, idSucursalV INT, idClienteV INT)
+BEGIN
+
+	SELECT SUM(detalle.cantidad*detalle.costo) FROM Sucursal 
+		INNER JOIN Pedido ON Sucursal.idSucursal = pedido.idSucursal
+        INNER JOIN Detalle ON Pedido.idpedido = detalle.idPedido;
+        #WHERE ;
+
 END
 $$
 

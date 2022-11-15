@@ -37,10 +37,6 @@ DROP PROCEDURE IF EXISTS createEncargo;
 DROP PROCEDURE IF EXISTS readEncargo;
 DROP PROCEDURE IF EXISTS updateEncargo;
 DROP PROCEDURE IF EXISTS deleteEncargo;
-DROP PROCEDURE IF EXISTS createImpuesto;
-DROP PROCEDURE IF EXISTS readImpuesto;
-DROP PROCEDURE IF EXISTS updateImpuesto;
-DROP PROCEDURE IF EXISTS deleteImpuesto;
 DROP PROCEDURE IF EXISTS createCategoria;
 DROP PROCEDURE IF EXISTS readCategoria;
 DROP PROCEDURE IF EXISTS updateCategoria;
@@ -77,10 +73,10 @@ DROP PROCEDURE IF EXISTS createProductoXProveedor;
 DROP PROCEDURE IF EXISTS readProductoXProveedor;
 DROP PROCEDURE IF EXISTS updateProductoXProveedor;
 DROP PROCEDURE IF EXISTS deleteProductoXProveedor;
-DROP PROCEDURE IF EXISTS createSucursalXProducto;
-DROP PROCEDURE IF EXISTS readSucursalXProducto;
-DROP PROCEDURE IF EXISTS updateSucursalXProducto;
-DROP PROCEDURE IF EXISTS deleteSucursalXProducto;
+DROP PROCEDURE IF EXISTS createLote;
+DROP PROCEDURE IF EXISTS readLote;
+DROP PROCEDURE IF EXISTS updateLote;
+DROP PROCEDURE IF EXISTS deleteLote;
 DROP PROCEDURE IF EXISTS createTarjeta;
 DROP PROCEDURE IF EXISTS readTarjeta;
 DROP PROCEDURE IF EXISTS updateTarjeta;
@@ -912,114 +908,24 @@ BEGIN
     SELECT message AS Resultado;
 END;
 $$
-
-/*------------------------------------------------------------------
-10 - Procedimientos para crud de la tabla impuesto
-------------------------------------------------------------------*/
-#CREATE-------------------------------------------------------------
-#CREATE IMPUESTO
-DELIMITER $$
-CREATE PROCEDURE createImpuesto (descripcionV VARCHAR(30), porcImpuestoV DECIMAL(5,2))
-BEGIN
-	DECLARE message VARCHAR(60);
-	
-    IF (descripcionV IS NULL OR porcImpuestoV IS NULL) THEN
-		SET message = "ERROR - Los datos ingresados son null";
-	ELSEIF (porcImpuestoV < 0)THEN
-		SET message = "ERROR - El porcentaje de impuesto debe ser mayor a 0";
-	ELSE 
-		INSERT INTO Impuesto (descripcion, porcImpuesto)
-					VALUES (descripcionV, porcImpuestoV);
-		SET message = "Se ha creado el nuevo impuesto con éxito";
-	END IF;
-    SELECT message AS Resultado;
-END;
-$$
-#READ-------------------------------------------------------------
-DELIMITER $$
-CREATE PROCEDURE readImpuesto (idImpuestoV INT)
-BEGIN
-
-	IF(idImpuestoV IS NULL) THEN
-		SELECT "Ingrese el id del Impuesto" AS ERROR;
-    ELSEIF (SELECT COUNT(*) FROM Impuesto 
-		WHERE Impuesto.idImpuesto = IFNULL(idImpuestoV, Impuesto.idImpuesto)) = 0 THEN
-		SELECT "No existe Impuesto con ese id" AS ERROR;
-	ELSE
-		SELECT Impuesto.idImpuesto, Impuesto.descripcion, Impuesto.porcImpuesto FROM Impuesto
-		WHERE Impuesto.idImpuesto = IFNULL(idImpuestoV, Impuesto.idImpuesto);
-	END IF;
-END;
-$$
-#UPDATE-------------------------------------------------------------
-DELIMITER $$
-CREATE PROCEDURE updateImpuesto (idImpuestoV INT, newDescripcion varchar(30), newPorcImpuesto decimal(5,2))
-BEGIN
-	DECLARE message VARCHAR(70);
-    
-    IF (idImpuestoV IS NULL) THEN
-		SET message = "Para modificar debe ingresar el id del impuesto";
-	# no existe el impuesto
-	ELSEIF (SELECT COUNT(*) FROM impuesto WHERE impuesto.idImpuesto = idImpuestoV) = 0 THEN
-		SET message = "No existe el impuesto";
-	# parametros vacios
-	ELSEIF (newDescripcion = "") THEN
-		SET message = "La descripcion del impuesto no puede estar vacio";
-	# newDescripcion repetido
-    ELSEIF (SELECT count(*) from impuesto where descripcion = newDescripcion) THEN
-		SET message = "Ya existe un impuesto con esa descripcion";
-	#
-    ELSEIF (newPorcIGanancia < 0.0 or newPorcGanancia > 100.0) THEN
-		SET message = "El porcentaje de ganancia no puede ser negativo o mayor a 100.0";
-    
-	ELSE
-		UPDATE impuesto SET impuesto.descripcion = IFNULL(newDescripcion, impuesto.descripcion),
-        impuesto.porcImpuesto = IFNULL(newPorcImpuesto, impuesto.porcImpuesto)
-        WHERE impuesto.idImpuesto = idImpuestoV;
-        SET message = "Se ha modificado con exito";
-	END IF;
-    SELECT message as Resultado;
-END;
-$$
-#DELETE-------------------------------------------------------------
-DELIMITER $$
-CREATE PROCEDURE deleteImpuesto (idImpuestoV INT)
-BEGIN
-	DECLARE message VARCHAR(60);
-    #Manejo de error- fk de otras tablas
-	DECLARE EXIT HANDLER FOR 1451 
-		SELECT "ERROR- No se puede borrar el Impuesto" AS Resultado;
-    
-    IF (idImpuestoV IS NULL) THEN
-		SET message = "ERROR - No puede ingresar datos NULL";
-	ELSEIF (SELECT COUNT(*) FROM Impuesto WHERE idImpuesto = idImpuestoV) = 0 THEN
-		SET message = "ERROR - No existe un Impuesto con el id ingresado";
-	ELSE
-		DELETE FROM Impuesto WHERE idImpuesto = idImpuestoV;
-		SET message = "Se ha borrado con éxito";
-	END IF;
-    SELECT message AS Resultado;
-END;
-$$
-
 /*------------------------------------------------------------------
 11 - Procedimientos para crud de la tabla Categoria
 ------------------------------------------------------------------*/
 #CREATE-------------------------------------------------------------
 DELIMITER $$
-CREATE PROCEDURE createCategoria ( descripcionV VARCHAR(30),idImpuestoV INT)
+CREATE PROCEDURE createCategoria ( descripcionV VARCHAR(30), porcImpuestoV DECIMAL(5,2))
 BEGIN
-	DECLARE message VARCHAR(60);
+	DECLARE message VARCHAR(80);
 	
-    IF (descripcionV IS NULL OR idImpuestoV IS NULL) THEN
+    IF (descripcionV IS NULL OR porcImpuestoV IS NULL) THEN
 		SET message = "ERROR-Los datos ingresados no pueden ser NULL";
-	ELSEIF (SELECT COUNT(*) FROM IMPUESTO WHERE idImpuesto = idImpuestoV) = 0 THEN
-		SET message = "ERROR-El impuesto ingresado no existe";
 	ELSEIF ((SELECT COUNT(*) FROM Categoria WHERE descripcion = descripcionV)!=0) THEN
 		SET message = "ERROR-La categoria ya existe";
+	ELSEIF (porcImpuestoV < 0 and porcImpuestoV > 1) THEN
+		SET message = "ERROR-El porcentaje de impuesto debe estar entre 0.0 y 1.0";
 	ELSE
-		INSERT INTO Categoria (descripcion, idImpuesto)
-					VALUES (descripcionV, idImpuestoV);
+		INSERT INTO Categoria (descripcion, porcImpuesto)
+					VALUES (descripcionV, porcImpuestoV);
 		SET message = "Se ha creado la categoria éxitosamente";
 	END IF;
     SELECT message AS Resultado;
@@ -1036,14 +942,14 @@ BEGIN
 		WHERE Categoria.idCategoria = IFNULL(idCategoriaV, Categoria.idCategoria)) = 0 THEN
 		SELECT "No existe Categoria con ese id" AS ERROR;
 	ELSE
-		SELECT Categoria.idCategoria, Categoria.descripcion, Categoria.idImpuesto FROM Categoria
+		SELECT Categoria.idCategoria, Categoria.descripcion, Categoria.idImpuesto, Categoria.porcImpuesto FROM Categoria
 		WHERE Categoria.idCategoria = IFNULL(idCategoriaV, Categoria.idCategoria);
 	END IF;
 END;
 $$
 #UPDATE-------------------------------------------------------------
 DELIMITER $$
-CREATE PROCEDURE updateCategoria (idCategoriaV INT, newDescripcion varchar(30), newIdImpuesto INT)
+CREATE PROCEDURE updateCategoria (idCategoriaV INT, newDescripcion varchar(30), newPorcImpuesto DECIMAL(5,2))
 BEGIN
 	DECLARE message VARCHAR(60);
     
@@ -1058,13 +964,13 @@ BEGIN
 	# newDescripcion repetido
     ELSEIF (SELECT count(*) from categoria where descripcion = newDescripcion) THEN
 		SET message = "Ya existe una categoria con esa descripcion";
-	# en caso de que el nuevo idCategoria no sea null se verifica que exista   
-	ELSEIF ((newIdImpuesto IS NOT NULL AND (SELECT COUNT(*) FROM impuesto where idImpuesto = newIdImpuesto) = 0)) THEN
-		SET message = "No existe el impuesto al que se quiere asociar";
+	ELSEIF (newPorcImpuesto < 0 and newPorcImpuesto > 1) THEN
+		SET message = "ERROR-El porcentaje de impuesto debe estar entre 0.0 y 1.0";
+	
     
 	ELSE
 		UPDATE categoria SET categoria.descripcion = IFNULL(newDescripcion, categoria.descripcion),
-        categoria.idImpuesto = IFNULL(newIdImpuesto, categoria.idImpuesto)
+        categoria.porcImpuesto = IFNULL(newPorcImpuesto, categoria.porcImpuesto)
         WHERE categoria.idCategoria = idCategoriaV;
         SET message = "Se ha modificado con exito";
 	END IF;
@@ -1364,19 +1270,21 @@ $$
 ------------------------------------------------------------------*/
 #CREATE-------------------------------------------------------------
 DELIMITER $$
-CREATE PROCEDURE createProducto (nombreV VARCHAR(30), idCategoriaV INT)
+CREATE PROCEDURE createProducto (nombreV VARCHAR(30), idCategoriaV INT, cantidadMaxV INT, cantidadMinV INT)
 BEGIN
 	DECLARE message VARCHAR(60);
     
-    IF (nombreV IS NULL OR idCategoriaV IS NULL) THEN
+    IF (nombreV IS NULL OR idCategoriaV IS NULL OR cantidadMaxV is null or cantidadMinV is null) THEN
 		SET message = "ERROR - Los datos ingresados no deben ser NULL";
 	ELSEIF((SELECT COUNT(*) FROM Categoria WHERE idCategoria = idCategoriaV)=0) THEN
 		SET message = "ERROR - La categoria de producto ingresada no es válida";
 	ELSEIF ((SELECT COUNT(*) FROM Producto WHERE nombreProducto = nombreV) != 0) THEN
 		SET message = "ERROR - El producto ya existe";
+	ELSEIF (cantidadMaxV < cantidadMinV) THEN
+		SET message = "ERROR - La cantidad minima no puede ser mayor a la maxima";
 	ELSE
-		INSERT INTO Producto (nombreProducto, idCategoria)
-					VALUES(nombreV, idCategoriaV);
+		INSERT INTO Producto (nombreProducto, idCategoria, cantidadMin, cantidadMax)
+					VALUES(nombreV, idCategoriaV, cantidadMinV, cantidadMaxV);
 		SET message = "El producto ha sido creado éxitosamente";
 	END IF;
     SELECT message AS resultado;	
@@ -1393,14 +1301,16 @@ BEGIN
 		WHERE Producto.idProducto = IFNULL(idProductoV, Producto.idProducto)) = 0 THEN
 		SELECT "No existe Producto con ese id" AS ERROR;
 	ELSE
-		SELECT Producto.idProducto, Producto.nombreProducto, Producto.idCategoria FROM Producto
+		SELECT Producto.idProducto, Producto.nombreProducto, Producto.idCategoria, 
+        Producto.cantidadMin, producto.cantidadMax FROM Producto
 		WHERE Producto.idProducto = IFNULL(idProductoV, Producto.idProducto);
 	END IF;
 END;
 $$
 #UPDATE-------------------------------------------------------------
 DELIMITER $$
-CREATE PROCEDURE updateProducto (idProductoV INT, newNombreProducto varchar(30), newIdCategoria INT)
+CREATE PROCEDURE updateProducto (idProductoV INT, newNombreProducto varchar(30), newIdCategoria INT,
+								newCantidadMin INT, newCantidadMax INT)
 BEGIN
 	DECLARE message VARCHAR(60);
     
@@ -1418,10 +1328,21 @@ BEGIN
 	# en caso de que el nuevo idCategoria no sea null se verifica que exista   
 	ELSEIF ((newIdCategoria IS NOT NULL AND (SELECT COUNT(*) FROM categoria where idCategoria = newIdCategoria) = 0)) THEN
 		SET message = "No existe la categoria a la que se quiere asociar";
+	# cantidadMin negativo
+	ELSEIF ((newCantidadMin IS NOT NULL AND newCantidadMin <= 0) or (newCantidadMax IS NOT NULL AND newCantidadMax <= 0)) THEN
+		SET message = "La cantidadMin y Max no pueden ser igual o menor a 0";
+	# cantidadMin >= cantidadMax
+    ELSEIF (newCantidadMin IS NOT NULL AND (SELECT cantidadMax FROM Lote WHERE idLote = idLoteV) <= newCantidadMin ) THEN
+		SET message = "La cantidadMin no puede ser mayor o igual a la cantidadMax";
+	# cantidadMax <= cantidadMin
+	ELSEIF (newCantidadMax IS NOT NULL AND (SELECT cantidadMin FROM Lote WHERE idLote = idLoteV) >= newCantidadMax ) THEN
+		SET message = "La cantidadMax no puede ser menor o igual a la cantidadMax";
     
 	ELSE
 		UPDATE producto SET producto.nombreProducto = IFNULL(newNombreProducto, producto.nombreProducto),
-        producto.idCategoria = IFNULL(newIdCategoria, producto.idCategoria)
+        producto.idCategoria = IFNULL(newIdCategoria, producto.idCategoria),
+        producto.cantidadMin = IFNULL(newCantidadMin, producto.cantidadMin),
+        producto.cantidadMax = IFNULL(newCantidadMax, producto.cantidadMax)
         WHERE producto.idProducto = idProductoV;
         SET message = "Se ha modificado con exito";
 	END IF;
@@ -1455,22 +1376,22 @@ $$
 #CREATE-------------------------------------------------------------
 DELIMITER $$
 CREATE PROCEDURE createPromocion (fechaInicialV DATE, fechaFinalV DATE, 
-								  porcDescuentoV DECIMAL(5,2), idProductoV INT)
+								  porcDescuentoV DECIMAL(5,2), idLoteV INT)
 BEGIN
 	DECLARE message VARCHAR(60);
 	
     IF (fechaInicialV IS NULL OR fechaFinalV IS NULL OR porcDescuentoV IS NULL OR
-		idProductoV IS NULL) THEN
+		idLoteV IS NULL) THEN
         SET message = "ERROR - Los datos ingresados no pueden ser NULL";
 	ELSEIF(fechaInicialV > fechaFinalV) THEN 
 		SET message = "ERROR - La fecha inicial debe ser mas reciente que la final";
 	ELSEIF (porcDescuentoV <= 0) THEN
 		SET message = "ERROR - El procentaje de descuento debe ser mayor a 0";
-	ELSEIF ((SELECT COUNT(*) FROM Producto WHERE idProducto = idProductoV) = 0) THEN
-		SET message = "ERROR - El id producto ingresado no es valido";
+	ELSEIF ((SELECT COUNT(*) FROM Lote WHERE idLote = idLoteV) = 0) THEN
+		SET message = "ERROR - El id Lote ingresado no es valido";
 	ELSE
-		INSERT INTO Promocion (fechaInicial, fechaFinal, porcentajeDesc, idProducto)
-					VALUES (fechaInicialV, fechaFinalV, porcDescuentoV, idProductoV);
+		INSERT INTO Promocion (fechaInicial, fechaFinal, porcentajeDesc, idLote)
+					VALUES (fechaInicialV, fechaFinalV, porcDescuentoV, idLoteV);
 		SET message = "La promocion se ha agregado con exito";
 	END IF;
     SELECT message AS Resultado;
@@ -1488,7 +1409,7 @@ BEGIN
 		SELECT "No existe Promocion con ese id" AS ERROR;
 	ELSE
 		SELECT Promocion.idPromocion, Promocion.fechaInicial, Promocion.fechaFinal, 
-        Promocion.porcentajeDesc, Promocion.idProducto FROM Promocion
+        Promocion.porcentajeDesc, Promocion.idLote FROM Promocion
 		WHERE Promocion.idPromocion = IFNULL(idPromocionV, Promocion.idPromocion);
 	END IF;
 END;
@@ -1496,7 +1417,7 @@ $$
 #UPDATE-------------------------------------------------------------
 DELIMITER $$
 CREATE PROCEDURE updatePromocion (idPromocionV INT, newFechaInicial DATE, newFechaFinal DATE, 
-				newPorcentajeDesc decimal(5,2), newIdProducto INT)
+				newPorcentajeDesc decimal(5,2), newIdLote INT)
 BEGIN
 	DECLARE message VARCHAR(60);
     
@@ -1515,14 +1436,14 @@ BEGIN
 	ELSEIF (newPorcentajeDesc IS NOT NULL AND newPorcentajeDesc <= 0.0) THEN
 		SET message = "El nuevo porcDescuento no puede ser igual o menor a 0";
 	# en caso de que el nuevo idProducto no sea null se verifica que exista   
-	ELSEIF ((newIdProducto IS NOT NULL AND (SELECT COUNT(*) FROM producto where idProducto = newIdProducto) = 0)) THEN
-		SET message = "No existe el producto al que se quiere asociar";
+	ELSEIF ((newIdLote IS NOT NULL AND (SELECT COUNT(*) FROM lote where idLote = newIdLote) = 0)) THEN
+		SET message = "No existe el lote al que se quiere asociar";
     
 	ELSE
 		UPDATE promocion SET promocion.fechaInicial = IFNULL(newFechaInicial, promocion.fechaInicial),
         promocion.fechaFinal = IFNULL(newFechaFinal, promocion.fechaFinal),
         promocion.porcentajeDesc = IFNULL(newPorcentajeDesc, promocion.porcentajeDesc),
-        promocion.idProducto = IFNULL(newIdProducto, promocion.idProducto)
+        promocion.idLote = IFNULL(newIdLote, promocion.idLote)
         WHERE promocion.idPromocion = idPromocionV;
         SET message = "Se ha modificado con exito";
 	END IF;
@@ -1665,21 +1586,23 @@ $$
 ------------------------------------------------------------------*/
 #CREATE-------------------------------------------------------------
 DELIMITER $$
-CREATE PROCEDURE createDetalle (cantidadV INT, idPedidoV INT, idProductoV INT)
+CREATE PROCEDURE createDetalle (cantidadV INT, costoV DECIMAL(15,2), idPedidoV INT, idProductoV INT)
 BEGIN
 	DECLARE message VARCHAR(60);
     
-    IF (cantidadV IS NULL OR idPedidoV IS NULL OR idProductoV IS NULL) THEN
+    IF (cantidadV IS NULL OR idPedidoV IS NULL OR idProductoV IS NULL OR costoV IS NULL) THEN
 		SET message = "ERROR - Los datos ingresados no pueden ser NULL";
 	ELSEIF cantidadV < 0 THEN
-		SET message = "ERROR - La cantidad nu puede ser un dato negativo";
+		SET message = "ERROR - La cantidad no puede ser un dato negativo";
+	ELSEIF costoV < 0 THEN
+		SET message = "ERROR - El costo no puede ser un dato negativo";
 	ELSEIF ((SELECT COUNT(*) FROM Pedido WHERE idPedido = idPedidoV) = 0) THEN
 		SET message = "ERROR - El id del pedido ingresado no es válido";
 	ELSEIF ((SELECT COUNT(*) FROM Producto WHERE idProducto = idProductoV) = 0) THEN
 		SET message = "ERROR - El id del producto ingresado no es válido";
 	ELSE
-		INSERT INTO Detalle(cantidad, idPedido, idProducto)
-					VALUES (cantidadV, idPedidoV, idProductoV);
+		INSERT INTO Detalle(cantidad, costo, idPedido, idProducto)
+					VALUES (cantidadV, costoV, idPedidoV, idProductoV);
 		SET message = "Se ha agregado el detalle";
 	END IF;
 	SELECT message AS resultado;
@@ -1696,14 +1619,14 @@ BEGIN
 		WHERE Detalle.idDetalle = IFNULL(idDetalleV, Detalle.idDetalle)) = 0 THEN
 		SELECT "No existe Detalle con ese id" AS ERROR;
 	ELSE
-		SELECT Detalle.idDetalle, Detalle.cantidad, Detalle.idPedido, Detalle.idProducto FROM Detalle
+		SELECT Detalle.idDetalle, Detalle.cantidad, Detalle.Costo, Detalle.idPedido, Detalle.idProducto FROM Detalle
 		WHERE Detalle.idDetalle = IFNULL(idDetalleV, Detalle.idDetalle);
 	END IF;
 END;
 $$
 #UPDATE-------------------------------------------------------------
 DELIMITER $$
-CREATE PROCEDURE updateDetalle (idDetalleV INT, newCantidad INT, newIdPedido INT, newIdProducto INT)
+CREATE PROCEDURE updateDetalle (idDetalleV INT, newCantidad INT, newCosto DECIMAL(15,2), newIdPedido INT, newIdProducto INT)
 BEGIN
 	DECLARE message VARCHAR(60);
     
@@ -1715,6 +1638,9 @@ BEGIN
 	# cantidad negativo
 	ELSEIF (newCantidad IS NOT NULL AND newCantidad <= 0) THEN
 		SET message = "La cantidad no puede ser igual o menor a 0";
+	# cantidad negativo
+	ELSEIF (newCosto IS NOT NULL AND newCantidad < 0) THEN
+		SET message = "La cantidad no puede ser menor a 0";
 	# en caso de que el nuevo idPedido no sea null se verifica que exista   
 	ELSEIF ((newIdPedido IS NOT NULL AND (SELECT COUNT(*) FROM pedido where idPedido = newIdPedido) = 0)) THEN
 		SET message = "No existe el pedido al que se quiere asociar";
@@ -1724,6 +1650,7 @@ BEGIN
     
 	ELSE
 		UPDATE detalle SET detalle.cantidad = IFNULL(newCantidad, detalle.cantidad),
+        detalle.costo = IFNULL(newCosto, detalle.costo),
         detalle.idPedido = IFNULL(newIdPedido, detalle.idPedido),
         detalle.idProducto = IFNULL(newIdProducto, detalle.idProducto)
         WHERE detalle.idDetalle = idDetalleV;
@@ -1873,12 +1800,12 @@ BEGIN
 END;
 $$
 /*------------------------------------------------------------------
-21 - Procedimientos para crud de la tabla SucursalXProducto
+21 - Procedimientos para crud de la tabla Lote
 ------------------------------------------------------------------*/
 #CREATE-------------------------------------------------------------
 DELIMITER $$
-CREATE PROCEDURE createSucursalXProducto (idSucursalV INT, idProductoV INT, cantidadV INT,
-										  cantidadMinV INT, cantidadMaxV INT, fechaProduccionV DATE,
+CREATE PROCEDURE createLote (idSucursalV INT, idProductoV INT, cantidadV INT,
+										  fechaProduccionV DATE,
                                           fechaExpiracionV DATE, estadoV VARCHAR(30), precioV DECIMAL(15,2))
 BEGIN
 	DECLARE message VARCHAR(90);
@@ -1893,55 +1820,51 @@ BEGIN
 		SET message = "ERROR - El id Sucursal no es valido";
 	ELSEIF (cantidadV < 0 OR cantidadMinV < 0 OR cantidadMaxV < 0 OR precioV < 0) THEN
 		SET message = "ERROR - Las cantidades no pueden ser negativas";
-	ELSEIF (cantidadMaxV < cantidadMinV) THEN
-		SET message = "ERROR - La cantidad minima no puede ser mayor a la maxima";
 	ELSEIF (fechaProduccionV > fechaExpiracionV) THEN
 		SET message = "La fecha de producion no puede ser despues de la de expiracion";
 	#FALTA VALIDAR ESTADO
 	ELSE
-		INSERT INTO Sucursalxproducto(idSucursal, idProducto, cantidad, cantidadMin, 
-										cantidadMax, fechaProduccion, fechaExpiracion, 
+		INSERT INTO Lote(idSucursal, idProducto, cantidad, fechaProduccion, fechaExpiracion, 
                                         estado, precio)
-									VALUES(idSucursalV, idProductoV, cantidadV, cantidadMinV, 
-										cantidadMaxV, fechaProduccionV, fechaExpiracionV, 
+									VALUES(idSucursalV, idProductoV, cantidadV, fechaProduccionV, fechaExpiracionV, 
                                         estadoV, precioV);
-		SET message = "Se agregó la Sucursalxproducto con éxito";
+		SET message = "Se agregó la Lote con éxito";
 	END IF;
     SELECT message AS Resultado;
 END;
 $$
 #READ-------------------------------------------------------------
 DELIMITER $$
-CREATE PROCEDURE readSucursalXProducto (idSucursalXProductoV INT)
+CREATE PROCEDURE readLote (idLoteV INT)
 BEGIN
 
-	IF(idSucursalXProductoV IS NULL) THEN
-		SELECT "Ingrese el id de la SucursalXProducto" AS ERROR;
-    ELSEIF (SELECT COUNT(*) FROM SucursalXProducto 
-		WHERE SucursalXProducto.idSucursalXProducto = IFNULL(idSucursalXProductoV, SucursalXProducto.idSucursalXProducto)) = 0 THEN
-		SELECT "No existe SucursalXProducto con ese id" AS ERROR;
+	IF(idLoteV IS NULL) THEN
+		SELECT "Ingrese el id de la Lote" AS ERROR;
+    ELSEIF (SELECT COUNT(*) FROM Lote 
+		WHERE Lote.idLote = IFNULL(idLoteV, Lote.idLote)) = 0 THEN
+		SELECT "No existe Lote con ese id" AS ERROR;
 	ELSE
-		SELECT SucursalXProducto.idSucursalXProducto, SucursalXProducto.idSucursal, SucursalXProducto.idProducto,
-        SucursalXProducto.cantidad, SucursalXProducto.cantidadMin, SucursalXProducto.cantidadMax, 
-        SucursalXProducto.fechaProduccion, SucursalXProducto.fechaExpiracion, SucursalXProducto.estado, SucursalXProducto.precio
-        FROM SucursalXProducto
-		WHERE SucursalXProducto.idSucursalXProducto = IFNULL(idSucursalXProductoV, SucursalXProducto.idSucursalXProducto);
+		SELECT Lote.idLote, Lote.idSucursal, Lote.idProducto,
+        Lote.cantidad, 
+        Lote.fechaProduccion, Lote.fechaExpiracion, Lote.estado, Lote.precio
+        FROM Lote
+		WHERE Lote.idLote = IFNULL(idLoteV, Lote.idLote);
 	END IF;
 END;
 $$
 #UPDATE-------------------------------------------------------------
 DELIMITER $$
-CREATE PROCEDURE updateSucursalXProducto (idSucursalXProductoV INT, newIdSucursal INT, newIdProducto INT, newCantidad INT,
-				newCantidadMin INT, newCantidadMax INT, newFechaProduccion DATE, newFechaExpiracion DATE, newEstado VARCHAR(30),
+CREATE PROCEDURE updateLote (idLoteV INT, newIdSucursal INT, newIdProducto INT, newCantidad INT,
+				newFechaProduccion DATE, newFechaExpiracion DATE, newEstado VARCHAR(30),
                 newPrecio DECIMAL(15,2))
 BEGIN
 	DECLARE message VARCHAR(80);
     
-    IF (idSucursalXProductoV IS NULL) THEN
-		SET message = "Para modificar debe ingresar el id del SucursalXProducto";
-	# no existe SucursalXProducto
-	ELSEIF (SELECT COUNT(*) FROM SucursalXProducto WHERE SucursalXProducto.idSucursalXProducto = idSucursalXProductoV) = 0 THEN
-		SET message = "No existe el SucursalXProducto";
+    IF (idLoteV IS NULL) THEN
+		SET message = "Para modificar debe ingresar el id del Lote";
+	# no existe Lote
+	ELSEIF (SELECT COUNT(*) FROM Lote WHERE Lote.idLote = idLoteV) = 0 THEN
+		SET message = "No existe el Lote";
     # en caso de que el nuevo newIdSucursal no sea null se verifica que exista   
 	ELSEIF ((newIdSucursal IS NOT NULL AND (SELECT COUNT(*) FROM sucursal where idSucursal = newIdSucursal) = 0)) THEN
 		SET message = "No existe la sucursal a la que se quiere asociar";
@@ -1954,17 +1877,8 @@ BEGIN
 	ELSEIF (newPrecio IS NOT NULL AND newPrecio <= 0) THEN
 		SET message = "El precio del producto no puede ser igual o menor a 0";
     # cantidad negativa
-	ELSEIF (newCantidad IS NOT NULL AND newCantidad > (Select cantidad FROM sucursalxproducto where idSucursalXProducto = idSucursalXProductoV)) THEN
+	ELSEIF (newCantidad IS NOT NULL AND newCantidad > (Select cantidad FROM Lote where idLote = idLoteV)) THEN
 		SET message = "La cantidad no puede superar el maximo ni ser menor al minimo";    
-	# cantidadMin negativo
-	ELSEIF ((newCantidadMin IS NOT NULL AND newCantidadMin <= 0) or (newCantidadMax IS NOT NULL AND newCantidadMax <= 0)) THEN
-		SET message = "La cantidadMin y Max no pueden ser igual o menor a 0";
-	# cantidadMin >= cantidadMax
-    ELSEIF (newCantidadMin IS NOT NULL AND (SELECT cantidadMax FROM sucursalxproducto WHERE idSucursalXProducto = idSucursalXProductoV) <= newCantidadMin ) THEN
-		SET message = "La cantidadMin no puede ser mayor o igual a la cantidadMax";
-	# cantidadMax <= cantidadMin
-	ELSEIF (newCantidadMax IS NOT NULL AND (SELECT cantidadMin FROM sucursalxproducto WHERE idSucursalXProducto = idSucursalXProductoV) >= newCantidadMax ) THEN
-		SET message = "La cantidadMax no puede ser menor o igual a la cantidadMax";
 	# se intenta agregar una fecha que no ha llegado
 	ELSEIF (newFechaProduccion > curdate()) THEN
 		SET message = "La fechaProduccion no puede ser futura";
@@ -1972,23 +1886,21 @@ BEGIN
 	ELSEIF (newFechaExpiracion <= curdate()) THEN
 		SET message = "La FechaExpiracion no puede ser futura";
 	# fecha produccion >= fecha expiracion
-	ELSEIF (newFechaProduccion IS NOT NULL AND (SELECT FechaExpiracion FROM sucursalxproducto WHERE idSucursalXProducto = idSucursalXProductoV) <= newFechaProduccion ) THEN
+	ELSEIF (newFechaProduccion IS NOT NULL AND (SELECT FechaExpiracion FROM Lote WHERE idLote = idLoteV) <= newFechaProduccion ) THEN
 		SET message = "La FechaProduccion no puede ser mayor o igual a la FechaExpiracion";
 	# fecha expiracion <= fecha produccion
-	ELSEIF (newFechaExpiracion IS NOT NULL AND (SELECT FechaProduccion FROM sucursalxproducto WHERE idSucursalXProducto = idSucursalXProductoV) >= newFechaExpiracion ) THEN
+	ELSEIF (newFechaExpiracion IS NOT NULL AND (SELECT FechaProduccion FROM Lote WHERE idLote = idLoteV) >= newFechaExpiracion ) THEN
 		SET message = "La FechaExpiracion no puede ser menor o igual a la FechaProduccion";
         
 	ELSE
-		UPDATE sucursalxproducto SET sucursalxproducto.idSucursal = IFNULL(newIdSucursal, sucursalxproducto.idSucursal),
-        sucursalxproducto.idProducto = IFNULL(newIdProducto, sucursalxproducto.idProducto),
-        sucursalxproducto.cantidad = IFNULL(newCantidad, sucursalxproducto.cantidad),
-        sucursalxproducto.cantidadMin = IFNULL(newCantidadMin, sucursalxproducto.cantidadMin),
-        sucursalxproducto.cantidadMax = IFNULL(newCantidadMax, sucursalxproducto.cantidadMax),
-        sucursalxproducto.fechaProduccion = IFNULL(newFechaProduccion, sucursalxproducto.fechaProduccion),
-        sucursalxproducto.fechaExpiracion = IFNULL(newFechaExpiracion, sucursalxproducto.fechaExpiracion),
-        sucursalxproducto.estado = IFNULL(newEstado, sucursalxproducto.estado),
-        sucursalxproducto.precio = IFNULL(newPrecio, sucursalxproducto.precio)
-        WHERE sucursalxproducto.idSucursalXProducto = idSucursalXProductoV;
+		UPDATE Lote SET Lote.idSucursal = IFNULL(newIdSucursal, Lote.idSucursal),
+        Lote.idProducto = IFNULL(newIdProducto, Lote.idProducto),
+        Lote.cantidad = IFNULL(newCantidad, Lote.cantidad),
+        Lote.fechaProduccion = IFNULL(newFechaProduccion, Lote.fechaProduccion),
+        Lote.fechaExpiracion = IFNULL(newFechaExpiracion, Lote.fechaExpiracion),
+        Lote.estado = IFNULL(newEstado, Lote.estado),
+        Lote.precio = IFNULL(newPrecio, Lote.precio)
+        WHERE Lote.idLote = idLoteV;
         SET message = "Se ha modificado con exito";
 	END IF;
     SELECT message as Resultado;
@@ -1996,19 +1908,19 @@ END;
 $$
 #DELETE-------------------------------------------------------------
 DELIMITER $$
-CREATE PROCEDURE deleteSucursalXProducto (idSucursalXProductoV INT)
+CREATE PROCEDURE deleteLote (idLoteV INT)
 BEGIN
 	DECLARE message VARCHAR(60);
     #Manejo de error- fk de otras tablas
 	DECLARE EXIT HANDLER FOR 1451 
-		SELECT "ERROR- No se puede borrar la SucursalXProducto" AS Resultado;
+		SELECT "ERROR- No se puede borrar la Lote" AS Resultado;
     
-    IF (idSucursalXProductoV IS NULL) THEN
+    IF (idLoteV IS NULL) THEN
 		SET message = "ERROR - No puede ingresar datos NULL";
-	ELSEIF (SELECT COUNT(*) FROM SucursalXProducto WHERE idSucursalXProducto = idSucursalXProductoV) = 0 THEN
-		SET message = "ERROR - No existe una SucursalXProducto con el id ingresado ";
+	ELSEIF (SELECT COUNT(*) FROM Lote WHERE idLote = idLoteV) = 0 THEN
+		SET message = "ERROR - No existe una Lote con el id ingresado ";
 	ELSE
-		DELETE FROM SucursalXProducto WHERE idSucursalXProducto = idSucursalXProductoV;
+		DELETE FROM Lote WHERE idLote = idLoteV;
 		SET message = "Se ha borrado con éxito";
 	END IF;
     SELECT message AS Resultado;
