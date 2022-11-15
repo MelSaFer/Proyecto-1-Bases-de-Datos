@@ -70,7 +70,7 @@ SALIDAS:
 DROP PROCEDURE IF EXISTS revisarProductosSucursal;
 DELIMITER $$
 CREATE PROCEDURE revisarProductosSucursal(porcDescuentoV DECIMAL(5,2))
-BEGIN
+SP: BEGIN
 	DECLARE resultadoV INTEGER DEFAULT 0;
     DECLARE estadoV VARCHAR(30);
     DECLARE idSucursalXProductoV INT;
@@ -80,6 +80,11 @@ BEGIN
 	DECLARE cursorPromo CURSOR FOR SELECT idSucursalXProducto, idProducto, 
 		fechaExpiracion, estado FROM SucursalXProducto;
 	DECLARE CONTINUE HANDLER FOR NOT FOUND SET resultadoV = 1;
+    
+    IF (porcDescuentoV IS NULL) THEN
+		SELECT "El procentaje de descuento a los productos no puede ser null";
+        LEAVE SP;
+    END IF;
     
     OPEN cursorPromo;
     bucle: LOOP
@@ -98,7 +103,7 @@ BEGIN
 			CALL createPromocion((SELECT CURDATE()), (SELECT DATE_ADD((SELECT CURDATE()), INTERVAL 7 DAY)),
 				porcDescuentoV, idProductoV);
                 SELECT "Se ha puesto en promo";
-		ELSEIF(fechaExpiracionV < (SELECT CURDATE())) THEN
+		ELSEIF(fechaExpiracionV < (SELECT CURDATE()) AND  estadoV != "Vencido") THEN
 			UPDATE SucursalXProducto SET SucursalXProducto.estado = "Vencido" 
 				WHERE idProducto = idProductoV AND idSucursalXProducto = idSucursalXProductoV;
 			 SELECT "Se Vencio:(";
@@ -116,30 +121,118 @@ $$
 ENTRADAS: El id de la sucursal, id del producto  
 SALIDAS: 
 ------------------------------------------------------------------*/
-DROP PROCEDURE hacerPedidoProveedor;
+DROP PROCEDURE IF EXISTS hacerPedidoProveedor;
 DELIMITER $$
 CREATE PROCEDURE hacerPedidoProveedor ( idSucursalV INT, idProductoV INT)
-BEGIN
+MAIN : BEGIN
 	DECLARE idProveedorSeleccionado INT;
     DECLARE sumProductosEnInventario INT;
+    DECLARE resultado_VAR INTEGER DEFAULT 0;
+    DECLARE idProductoXProveedor_VAR INT;
+    DECLARE idProducto_VAR INT;
+    DECLARE idProveedor_VAR INT;
+    DECLARE existencias_VAR INT;
+    DECLARE fechaProduccion_VAR DATE;
+    DECLARE fechaExpiracion_VAR DATE;
+    DECLARE precio_VAR DECIMAL(15,2);
+    DECLARE sumadorVendidos INT DEFAULT 0;
+    DECLARE minInv INT;
+    DECLARE maxInv INT;
+    DECLARE porcGananciaP DECIMAL (5,2);
+    
+    
+    DECLARE cursorPP CURSOR FOR SELECT idProductoXProveedor, idProducto, idProveedor,
+		existencias, fechaProduccion, fechaExpiracion, precio FROM ProductoXProveedor;
+	DECLARE CONTINUE HANDLER FOR NOT FOUND SET resultado_VAR = 1;
     
     SET sumProductosEnInventario = (SELECT SUM(SucursalXProducto.Cantidad) 
 									FROM SucursalXProducto
 									WHERE SucursalXProducto.idProducto = idProductoV AND 
 									SucursalXProducto.Estado != "Vencido");
+	SET minInv = (SELECT DISTINCT cantidadMin FROM sucursalXProducto
+		WHERE SucursalXProducto.idProducto = idProductoV);
+	SET maxInv = (SELECT DISTINCT cantidadMax FROM sucursalXProducto
+		WHERE SucursalXProducto.idProducto = idProductoV);
 	#IF (idProducto IS NULL)]
-    IF (sumProductosEnInventario < (SELECT idSucursalXProducto
-        WHERE SucursalXProducto.idProducto = idProductoV)) THEN
+    #SELECT sumProductosEnInventario AS Resultado;
+    IF (sumProductosEnInventario < minInv) THEN
         
         SET idProveedorSeleccionado = (SELECT proveedor.idProveedor FROM proveedor 
 			INNER JOIN  productoxproveedor ON productoxproveedor.idProveedor = proveedor.idProveedor
 			WHERE productoxproveedor.precio = (SELECT MIN(precio) FROM productoxproveedor
-			WHERE idProducto = idProductoV) AND productoXProveedor.idProducto = idProductoV);
+			WHERE idProducto = idProductoV) AND productoXProveedor.idProducto = idProductoV
+            AND (SELECT SUM(existencias) FROM productoXProveedor WHERE productoXProveedor.idProducto = idProductoV) > 0);
+		#SELECT idProveedorSeleccionado;
+        IF (idProveedorSeleccionado IS NULL) THEN
+			SELECT "Los proveedores no tienen existencias del producto";
+			LEAVE MAIN;
+        END IF;
+		SET porcGananciaP = (SELECT proveedor.porcGanancia FROM proveedor 
+			WHERE proveedor.idProveedor = idProveedorSeleccionado);
+		OPEN cursorPP;
+        bucle: LOOP
+			FETCH cursorPP INTO idProductoXProveedor_VAR, idProducto_VAR, idProveedor_VAR,
+				existencias_VAR, fechaProduccion_VAR, fechaExpiracion_VAR, precio_VAR;
+			IF resultado_VAR = 1 THEN
+				LEAVE bucle;
+			END IF;
+			#aqui:)
+            IF(sumProductosEnInventario + sumadorVendidos) < maxInv THEN
+				IF (existencias_VAR >= (maxInv - (sumProductosEnInventario + sumadorVendidos))) THEN
+					SELECT precio_VAR+(precio_VAR*porcGananciaP) AS "2";
+					CALL createSucursalXProducto(idSucursalV, idProductoV, 
+                    (maxInv - (sumProductosEnInventario + sumadorVendidos)),
+                    minInv, maxInv, fechaProduccion_VAR, fechaExpiracion_VAR, 
+                    "En mostrador", (precio_VAR+(precio_VAR*porcGananciaP)));
+                                        
+                    CALL updateProductoXProveedor(idProductoXProveedor_VAR, NULL, NULL,
+						(existencias_VAR - (maxInv - (sumProductosEnInventario + sumadorVendidos))),
+                        NULL, NULL, NULL);
+					LEAVE bucle;
+				ELSE
+					SELECT precio_VAR+(precio_VAR*porcGananciaP) AS "1";
+					CALL createSucursalXProducto(idSucursalV, idProductoV, existencias_VAR,
+						minInv, maxInv, fechaProduccion_VAR, fechaExpiracion_VAR, 
+						"En mostrador", (precio_VAR+(precio_VAR*porcGananciaP)));
+					 CALL updateProductoXProveedor(idProductoXProveedor_VAR, NULL, NULL,
+						0, NULL, NULL, NULL);
+					SET sumadorVendidos = sumadorVendidos + existencias_VAR;
+				END IF;
+            END IF;
+        END LOOP bucle;
+        CLOSE cursorPP;
 			
         
 	END IF;
 END;
 $$
+
+CALL hacerPedidoProveedor(1, 1);
+
+
+/*------------------------------------------------------------------
+N -  Productos que han expirado en la sucursal
+ENTRADAS: NONE
+SALIDAS: Productos/lotes de producto con estado expirado
+------------------------------------------------------------------*/
+DROP PROCEDURE IF EXISTS reporteExpiradosSucursal;
+DELIMITER $$
+CREATE PROCEDURE reporteExpiradosSucursal(idSucursal INT)
+BEGIN
+	IF (idSucursal IS NOT NULL AND (SELECT COUNT(*) FROM Sucursal
+		WHERE Sucursal.idSucursal = idSucursal) = 0 ) THEN
+        SELECT "ERROR- El id ingresado no existe";
+	ELSE
+		SELECT Producto.idProducto, Producto.nombreProducto, Categoria. descripcion,
+			SucursalXProducto.cantidad, SucursalXProducto.estado FROM producto
+			INNER JOIN Categoria ON Categoria.idCategoria = Producto.idCategoria
+			INNER JOIN SucursalXProducto ON SucursalXProducto.idProducto = Producto.idProducto
+			WHERE SucursalXProducto.estado = "Vencido"
+			AND SucursalXProducto.idSucursal = IFNULL(idSucursal, SucursalXProducto.idSucursal);
+	END IF;
+END
+$$
+
 /*------------------------------------------------------------------
 N -  
 ENTRADAS: 
@@ -155,3 +248,16 @@ SELECT proveedor.idProveedor FROM proveedor
         WHERE idProducto = 1) AND productoxproveedor.idProducto = 1;
 SELECT * FROM PRODUCTO;
 SELECT * FROM productoxproveedor
+SELECT * FROM SucursalXProducto
+WHERE SucursalXProducto.idProducto = 1;
+SELECT DISTINCT cantidadMin
+FROM sucursalXProducto
+WHERE SucursalXProducto.idProducto = 1;
+
+
+DELETE FROM SucursalXProducto WHERE IDSucursalXProducto=9;
+SELECT DISTINCT cantidadMax FROM sucursalXProducto
+		WHERE SucursalXProducto.idProducto = 1
+CALL deletesucursalXProducto(12);
+CALL updateProductoXProveedor(3, NULL, NULL,
+						30, NULL, NULL, NULL);
