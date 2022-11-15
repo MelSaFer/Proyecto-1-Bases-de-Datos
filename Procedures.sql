@@ -155,7 +155,7 @@ MAIN : BEGIN
 		WHERE SucursalXProducto.idProducto = idProductoV);
 	#IF (idProducto IS NULL)]
     #SELECT sumProductosEnInventario AS Resultado;
-    IF (sumProductosEnInventario < minInv) THEN
+    IF (sumProductosEnInventario <= minInv) THEN
         
         SET idProveedorSeleccionado = (SELECT proveedor.idProveedor FROM proveedor 
 			INNER JOIN  productoxproveedor ON productoxproveedor.idProveedor = proveedor.idProveedor
@@ -177,7 +177,7 @@ MAIN : BEGIN
 				LEAVE bucle;
 			END IF;
 			#aqui:)
-            IF(sumProductosEnInventario + sumadorVendidos) < maxInv THEN
+            IF(sumProductosEnInventario + sumadorVendidos) < maxInv AND idProveedor_VAR = idProveedorSeleccionado THEN
 				IF (existencias_VAR >= (maxInv - (sumProductosEnInventario + sumadorVendidos))) THEN
 					SELECT precio_VAR+(precio_VAR*porcGananciaP) AS "2";
 					CALL createSucursalXProducto(idSucursalV, idProductoV, 
@@ -188,6 +188,7 @@ MAIN : BEGIN
                     CALL updateProductoXProveedor(idProductoXProveedor_VAR, NULL, NULL,
 						(existencias_VAR - (maxInv - (sumProductosEnInventario + sumadorVendidos))),
                         NULL, NULL, NULL);
+					SET sumadorVendidos = sumadorVendidos + (maxInv - sumProductosEnInventario);
 					LEAVE bucle;
 				ELSE
 					SELECT precio_VAR+(precio_VAR*porcGananciaP) AS "1";
@@ -201,13 +202,18 @@ MAIN : BEGIN
             END IF;
         END LOOP bucle;
         CLOSE cursorPP;
-			
-        
+		
+        select idProveedorSeleccionado;
+		call createEncargo (curdate(), idSucursalV, sumadorVendidos, idProductoV, idProveedorSeleccionado);
 	END IF;
+    
 END;
 $$
 
 CALL hacerPedidoProveedor(1, 1);
+SELECT * FROM Proveedor
+SELECT * FROM productoxproveedor
+
 
 
 /*------------------------------------------------------------------
@@ -234,10 +240,218 @@ END
 $$
 
 /*------------------------------------------------------------------
-N -  
+N -  Procedimiento para dar bonos a los empleados que superen 1000 ventas
 ENTRADAS: 
 SALIDAS: 
 ------------------------------------------------------------------*/
+DROP PROCEDURE IF EXISTS bonoEmpleados;
+DELIMITER $$
+CREATE PROCEDURE bonoEmpleados()
+BEGIN
+
+	DECLARE resultadoV INTEGER DEFAULT 0;
+    DECLARE idEmpleadoV INT;
+    DECLARE nombreV VARCHAR(30);
+    DECLARE salarioBaseV DECIMAL(15,2);
+    DECLARE idSucursalV INT;
+    DECLARE idCargoV INT;
+
+	DECLARE cursorEmpleado CURSOR FOR SELECT idEmpleado, nombre, 
+		salarioBase, idSucursal, idCargo FROM Empleado;
+	DECLARE CONTINUE HANDLER FOR NOT FOUND SET resultadoV = 1;
+
+	
+	OPEN cursorEmpleado;
+    bucle: LOOP
+		FETCH cursorEmpleado INTO idEmpleadoV, nombreV, 
+		salarioBaseV, idSucursalV, idCargoV;
+        
+        IF resultadoV = 1 then 
+			leave bucle;
+		end if;
+        
+        
+        IF (SELECT SUM(detalle.cantidad) FROM Empleado
+        INNER JOIN Pedido on Empleado.idEmpleado = Pedido.idEmpleado
+        INNER JOIN Detalle on Pedido.idPedido = Detalle.idPedido
+        WHERE Pedido.fecha >= curdate()-7) > 10 AND (SELECT cargo.descripcion FROM Empleado INNER JOIN
+        Cargo on Empleado.idCargo = cargo.idCargo WHERE Empleado.idEmpleado = idEmpleadoV) = "facturador" THEN
+        
+        call createBono(100000, curdate(), idEmpleadoV);
+		
+        #SELECT idEmpleadoV;
+        
+        END IF;
+		
+	END LOOP bucle;
+    CLOSE cursorEmpleado;
+
+END
+$$
+
+CALL bonoEmpleados();
+
+SELECT * from empleado
+
+SELECT SUM(detalle.cantidad) FROM Empleado
+        INNER JOIN Pedido on Empleado.idEmpleado = Pedido.idEmpleado
+        INNER JOIN Detalle on Pedido.idPedido = Detalle.idPedido
+        WHERE Pedido.fecha >= curdate()-7;
+        
+select * from pedido;
+select
+call updatePedido(1, "2022-11-11", null, null, null, null);
+call createDetalle(50, 1, 1);
+call createDetalle(20, 1, 1);
+
+select * from bono;
+
+SELECT cargo.descripcion FROM Empleado INNER JOIN
+        Cargo on Empleado.idCargo = cargo.idCargo) = "facturador"
+
+select * from detalle
+
+/*------------------------------------------------------------------
+N -  Procedimiento para que el cliente haga el pedido, puede pedir 
+	entrega a domicilio y el costo de envío es un 0,1% del monto pagado. 
+    Puede pagar con diferentes métodos de pago
+ENTRADAS: 
+SALIDAS: 
+------------------------------------------------------------------*/
+DROP PROCEDURE IF EXISTS crearPedido;
+DELIMITER $$
+CREATE PROCEDURE crearPedido(idTipoPagoV INT, idClienteV INT, idEmpleadoV INT, idTipoEnvioV INT)
+BEGIN
+
+	IF (idEmpleadoV IS NOT NULL AND (select cargo.descripcion from empleado 
+		INNER JOIN Cargo on empleado.idCargo = cargo.idCargo
+		where empleado.idEmpleado = idEmpleadoV) != "facturador") THEN
+		SELECT "ERROR- El empleado no es facturador" AS Resultado;
+    
+    else 
+		call createPedido(curdate(), idClienteV, idTipoPagoV, idEmpleadoV, idTipoEnvioV);
+    
+    END IF;
+END
+$$
+
+call crearPedido(1, 1, 2, 1);
+call createCargo("facturador");
+call createEmpleado("Rosa", curdate(), 390000, 1, 2)
+select * from empleado
+select * from cargo
+select * from pedido
+
+call crearPedido(1,1,)
+
+DROP PROCEDURE IF EXISTS agregarDetalle;
+DELIMITER $$
+CREATE PROCEDURE agregarDetalle(idPedidoV INT, idProductoV INT, cantidadV INT)
+BEGIN
+
+	DECLARE resultadoV INTEGER DEFAULT 0;
+    DECLARE idSucursalXProductoV INT;
+    DECLARE idSucursalV INT;
+    DECLARE idProducto_VAR INT;
+    DECLARE cantidad_VAR INT;
+    DECLARE estadoV VARCHAR(30);
+    DECLARE precioV DECIMAL(15,2);
+    DECLARE contadorProducto INT DEFAULT 0;
+    
+    DECLARE idSucursalSeleccionado INT;
+    
+    DECLARE cursorSucursalXProducto CURSOR FOR SELECT idSucursalXProducto, 
+    idSucursal, idProducto, cantidad, estado, precio FROM SucursalXProducto;
+	DECLARE CONTINUE HANDLER FOR NOT FOUND SET resultadoV = 1;
+    
+    SET idSucursalSeleccionado = (SELECT sucursal.idSucursal FROM Pedido 
+    INNER JOIN Cliente ON Pedido.idCliente = cliente.idCliente
+    INNER JOIN Sucursal ON Cliente.idSucursal = sucursal.idSucursal
+    WHERE idPedidoV = pedido.idPedido);
+    
+    IF (idPedidoV IS NULL) THEN
+		SELECT "El pedido no puede ser null" as Resultado;
+	
+    ELSE 
+	
+		OPEN cursorSucursalXProducto;
+		bucle: LOOP
+			FETCH cursorSucursalXProducto INTO idSucursalXProductoV, 
+			idSucursalV, idProducto_VAR, cantidad_VAR, estadoV, precioV;
+            
+            if((idProducto_VAR = idProductoV) AND estadoV != "vencido" 
+            AND cantidad_VAR > 0 AND idSucursalV = idSucursalSeleccionado) THEN
+				
+                IF (cantidad_Var >= cantidadV) THEN
+					CALL updateSucursalXProducto(idSucursalXProductoV, null,
+                    null, cantidad_Var - cantidadV, null, null, null, null, null, null);
+                    
+                    SET contadorProducto = contadorProducto + cantidadV;
+                    call createDetalle(contadorProducto, idPedidoV, idProductoV);
+                    LEAVE BUCLE;
+				
+                ELSE
+					CALL updateSucursalXProducto(idSucursalXProductoV, null,
+                    null, 0, null, null, null, null, null, null);
+                    
+                    SET contadorProducto = contadorProducto + (cantidad_Var);
+                    call createDetalle(cantidad_Var, idPedidoV, idProductoV);
+				END IF;
+                
+			END IF;
+			
+
+		END LOOP bucle;
+		CLOSE cursorSucursalXProducto;
+        
+	END IF;
+END
+$$
+
+call agregarDetalle(1, 1, 5);
+select * from detalle;
+select * from sucursalxproducto
+select * from pedido
+select * from tipoEnvio
+
+(SELECT sucursal.idSucursal FROM Pedido INNER JOIN Cliente ON Pedido.idCliente = cliente.idCliente
+    INNER JOIN Sucursal ON Cliente.idSucursal = sucursal.idSucursal
+    WHERE 1 = pedido.idPedido);
+    
+select * from sucursal
+    
+
+
+/*------------------------------------------------------------------
+N -  Consultar montos recolectados por envíos, fechas, sucursal y/o cliente 
+ENTRADAS: 
+SALIDAS: 
+------------------------------------------------------------------*/
+DROP PROCEDURE IF EXISTS montoEnvios;
+DELIMITER $$
+CREATE PROCEDURE bonoEmpleados()
+BEGIN
+	
+
+END
+$$
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 SELECT SUM(SucursalXProducto.Cantidad) FROM SucursalXProducto
 	WHERE SucursalXProducto.idProducto = 1 AND 
@@ -249,15 +463,24 @@ SELECT proveedor.idProveedor FROM proveedor
 SELECT * FROM PRODUCTO;
 SELECT * FROM productoxproveedor
 SELECT * FROM SucursalXProducto
-WHERE SucursalXProducto.idProducto = 1;
-SELECT DISTINCT cantidadMin
-FROM sucursalXProducto
-WHERE SucursalXProducto.idProducto = 1;
+
+select * from encargo
+
+
 
 
 DELETE FROM SucursalXProducto WHERE IDSucursalXProducto=9;
 SELECT DISTINCT cantidadMax FROM sucursalXProducto
 		WHERE SucursalXProducto.idProducto = 1
-CALL deletesucursalXProducto(12);
-CALL updateProductoXProveedor(3, NULL, NULL,
+CALL deletesucursalXProducto(5);
+CALL updateProductoXProveedor(1, NULL, NULL,
 						30, NULL, NULL, NULL);
+
+CALL updateSucursalXProducto(1, null, null, 1, null, null, null, null, null, null);
+                        
+                        
+(SELECT proveedor.idProveedor FROM proveedor 
+			INNER JOIN  productoxproveedor ON productoxproveedor.idProveedor = proveedor.idProveedor
+			WHERE productoxproveedor.precio = (SELECT MIN(precio) FROM productoxproveedor
+			WHERE idProducto = 1) AND productoXProveedor.idProducto = 1
+            AND (SELECT SUM(existencias) FROM productoXProveedor WHERE productoXProveedor.idProducto = 1) > 0);

@@ -97,6 +97,10 @@ DROP PROCEDURE IF EXISTS createTipoEnvio;
 DROP PROCEDURE IF EXISTS readTipoEnvio;
 DROP PROCEDURE IF EXISTS updateTipoEnvio;
 DROP PROCEDURE IF EXISTS deleteTipoEnvio;
+DROP PROCEDURE IF EXISTS createSucursalXCliente;
+DROP PROCEDURE IF EXISTS readSucursalXCliente;
+DROP PROCEDURE IF EXISTS updateSucursalXCliente;
+DROP PROCEDURE IF EXISTS deleteSucursalXCliente;
 
 #------------------------------CRUDS--------------------------------
 /*------------------------------------------------------------------
@@ -730,6 +734,8 @@ BEGIN
 		SET message = "El valor del monto en incorrecto";
 	ELSEIF (fechaV > (SELECT CURDATE())) THEN
 		SET message = "ERROR - No puede colocar fechas futuras en el bono";
+	ELSEIF (SELECT max(fechaV) FROM Bono where idEmpleado = idEmpleadoV) >= curdate()-7 THEN
+		SET message = "ERROR - Este empleado ya recibió un bono esta semana";
 	ELSE
 		INSERT INTO Bono (monto, fecha, idEmpleado)
 					VALUES (montoV, fechaV, idEmpleadoV);
@@ -1262,22 +1268,20 @@ $$
 #CREATE-------------------------------------------------------------
 DELIMITER $$
 CREATE PROCEDURE createCliente (nombreV VARCHAR(30), telefonoV VARCHAR(13), correoV VARCHAR(30),
-								direccionV VARCHAR(30), idCantonV INT, idSucursalV INT)
+								direccionV VARCHAR(30), idCantonV INT)
 BEGIN
 	DECLARE message VARCHAR(60);
     
     IF (nombreV IS NULL OR telefonoV IS NULL OR correoV IS NULL OR direccionV IS NULL 
-		OR idCantonV IS NULL OR idSucursalV IS NULL) THEN
+		OR idCantonV IS NULL) THEN
 		SET message = "ERROR - No puede ingresas datos NULL";
 	ELSEIF (SELECT COUNT(*) FROM Canton WHERE idCanton = idCantonV) = 0 THEN
 		SET message = "ERROR - El cantón ingresado no es válido";
-	ELSEIF (SELECT COUNT(*) FROM Sucursal WHERE idSucursal = idSucursalV) = 0 THEN
-		SET message = "ERROR - La sucursal ingresada no es válida";
 	ELSEIF (SELECT COUNT(*) FROM Cliente WHERE telefono = telefonoV OR correo = correoV) THEN
 		SET message = "ERROR - El telefono o el correo ingresado ya existe";
 	ELSE 
-		INSERT INTO Cliente (nombre, telefono, correo, direccion, idCanton, idSucursal)
-					VALUES (nombreV, telefonoV, correoV, direccionV, idCantonV, idSucursalV);
+		INSERT INTO Cliente (nombre, telefono, correo, direccion, idCanton)
+					VALUES (nombreV, telefonoV, correoV, direccionV, idCantonV);
 		SET message = "El cliente ha sido insertado con éxito";
 	END IF;
     SELECT message AS Resultado;	
@@ -1295,7 +1299,7 @@ BEGIN
 		SELECT "No existe cliente con ese id" AS ERROR;
 	ELSE
 		SELECT cliente.idCliente, cliente.nombre, cliente.telefono, cliente.correo, 
-        cliente.direccion, cliente.idCanton, cliente.idSucursal FROM cliente
+        cliente.direccion, cliente.idCanton FROM cliente
 		WHERE cliente.idCliente = IFNULL(idClienteV, cliente.idCliente);
 	END IF;
 END;
@@ -1303,7 +1307,7 @@ $$
 #UPDATE-------------------------------------------------------------
 DELIMITER $$
 CREATE PROCEDURE updateCliente (idClienteV INT, newNombre VARCHAR(30), newTelefono varchar(13), newCorreo varchar(30), 
-								newDireccion varchar(30), newIdCanton INT, newIdSucursal INT)
+								newDireccion varchar(30), newIdCanton INT)
 BEGIN
 	DECLARE message VARCHAR(60);
     
@@ -1321,17 +1325,13 @@ BEGIN
 	# en caso de que el nuevo idCanton no sea null se verifica que exista   
 	ELSEIF ((newIdCanton IS NOT NULL AND (SELECT COUNT(*) FROM canton where idCanton = newIdCanton) = 0)) THEN
 		SET message = "No existe el canton al que se quiere asociar";
-	# en caso de que el nuevo idSucursal no sea null se verifica que exista   
-	ELSEIF ((newIdSucursal IS NOT NULL AND (SELECT COUNT(*) FROM sulursak where idSucursal = newIdSucursal) = 0)) THEN
-		SET message = "No existe la sucursal a la que se quiere asociar";
     
 	ELSE
 		UPDATE cliente SET cliente.nombre = IFNULL(newNombre, cliente.nombre),
         cliente.telefono = IFNULL(newTelefono, cliente.telefono),
         cliente.correo = IFNULL(newCorreo, cliente.correo),
         cliente.direccion = IFNULL(newCorreo, cliente.direccion),
-        cliente.idCanton = IFNULL(newIdCanton, cliente.idCanton),
-        cliente.idSucursal = IFNULL(newIdSucursal, cliente.idSucursal)
+        cliente.idCanton = IFNULL(newIdCanton, cliente.idCanton)
         
         WHERE cliente.idCliente = idClienteV;
         SET message = "Se ha modificado con exito";
@@ -1942,7 +1942,7 @@ BEGIN
 	ELSEIF ((newIdProducto IS NOT NULL AND (SELECT COUNT(*) FROM producto where idProducto = newIdProducto) = 0)) THEN
 		SET message = "No existe el producto al que se quiere asociar";
 	# cantidad negativa
-	ELSEIF (newCantidad IS NOT NULL AND newCantidad <= 0) THEN
+	ELSEIF (newCantidad IS NOT NULL AND newCantidad < 0) THEN
 		SET message = "La cantidad de producto no puede ser igual o menor a 0";
 	ELSEIF (newPrecio IS NOT NULL AND newPrecio <= 0) THEN
 		SET message = "El precio del producto no puede ser igual o menor a 0";
@@ -1972,7 +1972,7 @@ BEGIN
 		SET message = "La FechaExpiracion no puede ser menor o igual a la FechaProduccion";
         
 	ELSE
-		UPDATE sucursalxproducto SET sucursalxproducto.idSucursalXProducto = IFNULL(newIdSucursal, sucursalxproducto.idSucursal),
+		UPDATE sucursalxproducto SET sucursalxproducto.idSucursal = IFNULL(newIdSucursal, sucursalxproducto.idSucursal),
         sucursalxproducto.idProducto = IFNULL(newIdProducto, sucursalxproducto.idProducto),
         sucursalxproducto.cantidad = IFNULL(newCantidad, sucursalxproducto.cantidad),
         sucursalxproducto.cantidadMin = IFNULL(newCantidadMin, sucursalxproducto.cantidadMin),
@@ -2402,6 +2402,98 @@ BEGIN
 END;
 $$
 
+/*------------------------------------------------------------------
+24 - Procedimientos para crud de la tabla SucursalXCliente
+------------------------------------------------------------------*/
+#CREATE-------------------------------------------------------------
+#CREATE TipoEnvio
+DELIMITER $$
+CREATE PROCEDURE createSucursalXCliente (idSucursalV INT, idClienteV INT)
+BEGIN
+	DECLARE message VARCHAR(80);
+	
+    IF (SELECT COUNT(*)  FROM Sucursal Where idSucursal = idSucursalV) = 0 THEN
+		SET message = "No existe la sucursal";
+	ELSEIF (SELECT COUNT(*)  FROM CLIENTE Where idCliente = idClienteV) = 0 THEN
+		SET message = "No existe el cliente";
+	ELSEIF (SELECT COUNT(*) FROM SucursalXCliente WHERE idSucursal = idSucursalV AND idCliente = idClienteV) > 0 THEN
+		SET message = "Este cliente ya se encuentra registrado en la sucursal";
+	ELSE 
+		INSERT INTO SucursalXCliente (idSucursal, idCliente)
+					VALUES (idSucursalV, idClienteV);
+		SET message = "Se ha creado el nuevo sucursalXCliente con éxito";
+	END IF;
+    SELECT message AS Resultado;
+END;
+$$
+#READ-------------------------------------------------------------
+DELIMITER $$
+CREATE PROCEDURE readSucursalXCliente (idSucursalXClienteV INT)
+BEGIN
+
+	IF(idSucursalXClienteV IS NULL) THEN
+		SELECT "Ingrese el id del SucursalXClienteV" AS ERROR;
+    ELSEIF (SELECT COUNT(*) FROM SucursalXCliente 
+		WHERE SucursalXCliente.idSucursalXCliente = IFNULL(idSucursalXClienteV, 
+        SucursalXCliente.idSucursalXCliente)) = 0 THEN
+		SELECT "No existe SucursalXCliente con ese id" AS ERROR;
+	ELSE
+		SELECT SucursalXCliente.idSucursalXCliente, SucursalXCliente.idSucursal, 
+        SucursalXCliente.idCliente FROM SucursalXCliente
+		WHERE SucursalXCliente.idSucursalXCliente = IFNULL(idSucursalXClienteV, SucursalXCliente.idSucursalXCliente);
+	END IF;
+END;
+$$
+#UPDATE-------------------------------------------------------------
+DELIMITER $$
+CREATE PROCEDURE updateSucursalXCliente (idSucursalXClienteV INT, newIdSucursal INT, newIdCliente INT)
+BEGIN
+	DECLARE message VARCHAR(70);
+    
+    IF (idSucursalXClienteV IS NULL) THEN
+		SET message = "Para modificar debe ingresar el id del SucursalXCliente";
+	# no existe el sucursalXCliente
+	ELSEIF (SELECT COUNT(*) FROM sucursalXCliente WHERE sucursalXCliente.idSucursalXCliente = idSucursalXClienteV) = 0 THEN
+		SET message = "No existe el sucursalXCliente";
+	# no existe el idSucursal
+	ELSEIF (SELECT COUNT(*) FROM sucursal WHERE sucursal.idSucursal = newIdSucursal) = 0 THEN
+		SET message = "No existe el idSucursal";
+	#
+    # no existe el idCliente
+	ELSEIF (SELECT COUNT(*) FROM cliente WHERE cliente.idCliente = newIdCliente) = 0 THEN
+		SET message = "No existe el idCliente";
+    ELSEIF (SELECT COUNT(*) FROM SucursalXCliente WHERE idSucursal = newIdSucursal AND idCliente = newIdCliente) > 0 THEN
+		SET message = "Este cliente ya se encuentra registrado en la sucursal";
+    
+	ELSE
+		UPDATE SucursalXCliente SET SucursalXCliente.idSucursal = IFNULL(newIdSucursal, SucursalXCliente.idSucursal),
+        SucursalXCliente.idCliente = IFNULL(newIdCliente, SucursalXCliente.idCliente)
+        WHERE SucursalXCliente.idSucursalXCliente = idSucursalXClienteV;
+        SET message = "Se ha modificado con exito";
+	END IF;
+    SELECT message as Resultado;
+END;
+$$
+#DELETE-------------------------------------------------------------
+DELIMITER $$
+CREATE PROCEDURE deleteSucursalXCliente (idSucursalXClienteV INT)
+BEGIN
+	DECLARE message VARCHAR(60);
+    #Manejo de error- fk de otras tablas
+	DECLARE EXIT HANDLER FOR 1451 
+		SELECT "ERROR- No se puede borrar el TipoEnvio" AS Resultado;
+    
+    IF (idSucursalXClienteV IS NULL) THEN
+		SET message = "ERROR - No puede ingresar datos NULL";
+	ELSEIF (SELECT COUNT(*) FROM SucursalXCliente WHERE idSucursalXCliente = idSucursalXClienteV) = 0 THEN
+		SET message = "ERROR - No existe un SucursalXClienteV con el id ingresado";
+	ELSE
+		DELETE FROM SucursalXCliente WHERE idSucursalXCliente = idSucursalXClienteV;
+		SET message = "Se ha borrado con éxito";
+	END IF;
+    SELECT message AS Resultado;
+END;
+$$
 
 
 /*

@@ -41,6 +41,7 @@ DROP TABLE IF EXISTS Pedido;
 CREATE TABLE Pedido (
 		idPedido INT PRIMARY KEY AUTO_INCREMENT,
         fecha DATE NOT NULL,
+        estadoPago VARCHAR(10) NOT NULL DEFAULT "pediente",
         idCliente INT NOT NULL,
         idTipoPago INT NOT NULL,
         idEmpleado INT NOT NULL,
@@ -143,8 +144,14 @@ CREATE TABLE Cliente (
         telefono VARCHAR(13) NOT NULL,
         correo VARCHAR(30) NOT NULL,
         direccion VARCHAR(30) NOT NULL,
-        idCanton INT NOT NULL,
-        idSucursal INT NOT NULL
+        idCanton INT NOT NULL
+);
+#-------------------------------------------------
+DROP TABLE IF EXISTS SucursalXCliente;
+CREATE TABLE SucursalXCliente (
+		idSucursalXCliente INT PRIMARY KEY AUTO_INCREMENT,
+        idSucursal INT NOT NULL,
+        idCliente INT NOT NULL
 );
 #-------------------------------------------------
 DROP TABLE IF EXISTS tipoPago;
@@ -242,7 +249,6 @@ ALTER TABLE Tarjeta ADD CONSTRAINT TarjetaXCliente_fk FOREIGN KEY(idCliente) REF
 ALTER TABLE Criptomoneda ADD CONSTRAINT CriptomonedaXCliente_fk FOREIGN KEY(idCliente) REFERENCES Cliente(idCliente);
 ALTER TABLE Cheque ADD CONSTRAINT ChequeXCliente_fk FOREIGN KEY(idCliente) REFERENCES Cliente(idCliente);
 ALTER TABLE Cliente ADD CONSTRAINT ClienteXCanton_fk FOREIGN KEY(idCanton) REFERENCES Canton(idCanton);
-ALTER TABLE Cliente ADD CONSTRAINT ClienteXSucursal_fk FOREIGN KEY(idSucursal) REFERENCES Sucursal(idSucursal);
 ALTER TABLE Encargo ADD CONSTRAINT EncargoXSucursal_fk FOREIGN KEY(idSucursal) REFERENCES Sucursal(idSucursal);
 ALTER TABLE Encargo ADD CONSTRAINT EncargoXProducto_fk FOREIGN KEY(idProducto) REFERENCES Producto(idProducto);
 ALTER TABLE Encargo ADD CONSTRAINT EncargoXProveedor_fk FOREIGN KEY(idProveedor) REFERENCES Proveedor(idProveedor);
@@ -254,6 +260,8 @@ ALTER TABLE Detalle ADD CONSTRAINT DetalleXPedido_fk FOREIGN KEY(idPedido) REFER
 ALTER TABLE Detalle ADD CONSTRAINT DetalleXProducto_fk FOREIGN KEY(idProducto) REFERENCES Producto(idProducto);
 ALTER TABLE SucursalXProducto ADD CONSTRAINT SucursalXProducto_XProducto_fk FOREIGN KEY(idProducto) REFERENCES Producto(idProducto);
 ALTER TABLE SucursalXProducto ADD CONSTRAINT SucursalXProducto_XSucursal_fk FOREIGN KEY(idSucursal) REFERENCES Sucursal(idSucursal);
+ALTER TABLE SucursalXCliente ADD CONSTRAINT SucursalXClienteXSucursal_fk FOREIGN KEY(idSucursal) REFERENCES Sucursal(idSucursal);
+ALTER TABLE SucursalXCliente ADD CONSTRAINT SucursalXClienteXCliente_fk FOREIGN KEY(idCliente) REFERENCES Cliente(idCliente);
 #---------------------------------------------------------------------------------------------------
 
 
