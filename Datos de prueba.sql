@@ -61,17 +61,16 @@ CALL CreateBono(10000, "2022-7-15", 2);
 
 #IMPUESTOS-----------------------------------------------
 #CREATE- Recibe: Descripcion y porcentaje
-CALL createImpuesto("Productos de la canasta básica", 0.0);	#id= 1
-CALL createImpuesto("Yogurts, leches...", 0.05);    		#id= 2
-CALL createImpuesto("Bebidas con licor", 0.09);    			#id= 3
+#CALL createImpuesto("Yogurts, leches...", 0.05);    		#id= 2
+#CALL createImpuesto("Bebidas con licor", 0.09);    			#id= 3
 #CALL deleteImpuesto(2);
 
 #CATEGORIAS----------------------------------------------
-#CREATE- Recibe: descripcion y id del impuesto
-CALL createCategoria ("Lacteos", 2);	#id= 1
-CALL createCategoria ("Frijoles", 1);	#id= 2
-CALL createCategoria ("Licor", 3);		#id= 3
-CALL createCategoria ("Arroz", 1);		#id= 4
+#CREATE- Recibe: descripcion y % del impuesto
+CALL createCategoria ("Lacteos", 0.02);	#id= 1
+CALL createCategoria ("Frijoles", 0.00);	#id= 2
+CALL createCategoria ("Licor", 0.03);		#id= 3
+CALL createCategoria ("Arroz", 0.0);		#id= 4
 #CALL deleteCategoria(2);
 
 #PROVEEDORES--------------------------------------------
@@ -107,15 +106,25 @@ CALL createSucursalXCliente(1,4);
 
 #PRODUCTOS------------------------------------------------
 #CREATE- Recibe: Nombre y Categoria
-CALL CreateProducto("Leche dos pinos 200ml", 1);	#id= 1
-CALL CreateProducto("Leche dos pinos 500ml", 1);	#id= 2
-CALL CreateProducto("Frijoles Tio Pelón 800g", 2);	#id= 3
-CALL CreateProducto("Arroz Tío Pelón 1k", 4);		#id= 4
-CALL CreateProducto("Arroz Luisiana 1k", 4);		#id= 5
+CALL CreateProducto("Leche dos pinos 200ml", 1, 10, 50);	#id= 1
+CALL CreateProducto("Leche dos pinos 500ml", 1, 10, 50);	#id= 2
+CALL CreateProducto("Frijoles Tio Pelón 800g", 2, 15, 35);	#id= 3
+CALL CreateProducto("Arroz Tío Pelón 1k", 4, 20, 60);		#id= 4
+CALL CreateProducto("Arroz Luisiana 1k", 4, 20, 60);		#id= 5
 #CALL deleteProducto(1);
 
+#SUCURSALXPRODUCTO---------------------------------------------
+#CREATE- Recibe: idSucursal, idProducto, cantidad de productos, cantidad minima, cantidad maxima
+#				fecha produccion, fecha expiracion, estado y precio
+CALL createLote (1, 1, 10, "2022-11-9", "2022-11-18", "En Mostrador", 1000); #id= 1
+CALL createLote (1, 2, 5, "2022-11-9", "2022-11-18", "En Mostrador", 1200); #id= 2
+CALL createLote (1, 4, 5, "2022-10-9", "2024-11-18", "En Mostrador", 1500); #id= 3
+select * from lote;
+call updateLote(1,null,null,11,null,null,null,null);
+#CALL deleteSucursalXProducto(1);
+
 #PROMOCION------------------------------------------------
-#CREATE- Recibe: Fecha inicial, fecha final, porcentaje, idProducto
+#CREATE- Recibe: Fecha inicial, fecha final, porcentaje, idLote
 CALL createPromocion("2022-09-16", "2022-10-20", 0.05, 1);
 
 #TIPO ENVIO----------------------------------------------
@@ -144,13 +153,7 @@ CALL CreatePedido("2022-11-15", 1, 1, 1, 1, 1);
 #UPDATE
 ##call updatePedido(1, "2022-11-11", null, null, null, null);
 
-#SUCURSALXPRODUCTO---------------------------------------------
-#CREATE- Recibe: idSucursal, idProducto, cantidad de productos, cantidad minima, cantidad maxima
-#				fecha produccion, fecha expiracion, estado y precio
-CALL createSucursalXProducto (1, 1, 10, 15, 50, "2022-11-9", "2022-11-18", "En Mostrador", 1000); #id= 1
-CALL createSucursalXProducto (1, 2, 5, 10, 25, "2022-11-9", "2022-11-18", "En Mostrador", 1200); #id= 2
-CALL createSucursalXProducto (1, 4, 5, 15, 60, "2022-10-9", "2024-11-18", "En Mostrador", 1500); #id= 3
-#CALL deleteSucursalXProducto(1);
+
 
 #TARJETAS, CHEQUES Y CRIPTO-------------------------------
 #Al cliente 1
@@ -179,3 +182,4 @@ CALL reporteExpiradosSucursal(1);
 CALL consultarEmpleados(NULL, NULL, NULL, NULL, NULL, NULL);
 #Consultar proveedores por nombre proveedor o nombre producto
 CALL consultarProveedores(NULL, "Dos Pinos");
+call montoEnvios(2,"2022-11-10","2022-11-30",1,1);

@@ -361,7 +361,7 @@ BEGIN
 				
                 IF (cantidad_Var >= cantidadV) THEN
 					CALL updateLote(idLoteV, null,
-                    null, cantidad_Var - cantidadV, null, null, null, null, null, null);
+                    null, cantidad_Var - cantidadV, null, null, null, null);
                     
                     SET contadorProducto = contadorProducto + cantidadV;
                     call createDetalle(contadorProducto, cantidadV * precioV, idPedidoV, idProductoV);
@@ -369,7 +369,7 @@ BEGIN
 				
                 ELSE
 					CALL updateLote(idLoteV, null,
-                    null, 0, null, null, null, null, null, null);
+                    null, 0, null, null, null, null);
                     
                     SET contadorProducto = contadorProducto + (cantidad_Var);
                     call createDetalle(cantidad_Var, cantidad_Var * precioV, idPedidoV, idProductoV);
@@ -431,14 +431,19 @@ DELIMITER $$
 CREATE PROCEDURE montoEnvios(idTipoEnvioV INT, fechI DATE, fechF DATE, idSucursalV INT, idClienteV INT)
 BEGIN
 
-	SELECT SUM(detalle.cantidad*detalle.costo) FROM Sucursal 
-		INNER JOIN Pedido ON Sucursal.idSucursal = pedido.idSucursal
-        INNER JOIN Detalle ON Pedido.idpedido = detalle.idPedido;
-        #WHERE ;
+	SELECT SUM((detalle.cantidad*detalle.costo)*tipoEnvio.porcentajeAdicional) FROM Sucursal 
+		INNER JOIN SucursalXCliente ON Sucursal.idsucursal = SucursalXCliente.idCliente
+		INNER JOIN Pedido ON SucursalXCliente.idCliente = pedido.idCliente
+        INNER JOIN Detalle ON Pedido.idpedido = detalle.idPedido
+        INNER JOIN TipoEnvio on Pedido.idTipoEnvio = TipoEnvio.idTipoEnvio
+        WHERE tipoEnvio.idTipoEnvio = IFNULL(idTipoEnvioV, tipoEnvio.idTipoEnvio)
+        AND sucursal.idSucursal = IFNULL(idSucursalV, sucursal.idSucursal)
+        AND SucursalXCliente.idCliente = IFNULL(idClienteV, SucursalXCliente.idCliente)
+        AND pedido.fecha >= IFNULL(fechI, pedido.fecha)
+        AND pedido.fecha <= IFNULL(fechF, pedido.fecha)
+        group by tipoEnvio.idTipoEnvio;
 
 END
 $$
-
-
 
 

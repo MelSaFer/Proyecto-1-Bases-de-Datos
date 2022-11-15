@@ -942,7 +942,7 @@ BEGIN
 		WHERE Categoria.idCategoria = IFNULL(idCategoriaV, Categoria.idCategoria)) = 0 THEN
 		SELECT "No existe Categoria con ese id" AS ERROR;
 	ELSE
-		SELECT Categoria.idCategoria, Categoria.descripcion, Categoria.idImpuesto, Categoria.porcImpuesto FROM Categoria
+		SELECT Categoria.idCategoria, Categoria.descripcion, Categoria.porcImpuesto FROM Categoria
 		WHERE Categoria.idCategoria = IFNULL(idCategoriaV, Categoria.idCategoria);
 	END IF;
 END;
@@ -1270,7 +1270,7 @@ $$
 ------------------------------------------------------------------*/
 #CREATE-------------------------------------------------------------
 DELIMITER $$
-CREATE PROCEDURE createProducto (nombreV VARCHAR(30), idCategoriaV INT, cantidadMaxV INT, cantidadMinV INT)
+CREATE PROCEDURE createProducto (nombreV VARCHAR(30), idCategoriaV INT, cantidadMinV INT, cantidadMaxV INT)
 BEGIN
 	DECLARE message VARCHAR(60);
     
@@ -1811,14 +1811,14 @@ BEGIN
 	DECLARE message VARCHAR(90);
     
     IF (idSucursalV IS NULL OR idProductoV IS NULL OR cantidadV IS NULL
-		OR cantidadMinV IS NULL OR cantidadMaxV IS NULL OR fechaProduccionV IS NULL 
+		OR fechaProduccionV IS NULL 
         OR fechaExpiracionV IS NULL OR estadoV IS NULL) THEN
         SET message = "ERROR - Los datos ingresados no pueden ser NULL";
 	ELSEIF ((SELECT COUNT(*) FROM Producto WHERE idProducto = idProductoV) = 0) THEN
 		SET message = "ERROR - El id Producto no es valido";
 	ELSEIF ((SELECT COUNT(*) FROM Sucursal WHERE idSucursal = idSucursalV) = 0) THEN
 		SET message = "ERROR - El id Sucursal no es valido";
-	ELSEIF (cantidadV < 0 OR cantidadMinV < 0 OR cantidadMaxV < 0 OR precioV < 0) THEN
+	ELSEIF (cantidadV < 0 OR precioV < 0) THEN
 		SET message = "ERROR - Las cantidades no pueden ser negativas";
 	ELSEIF (fechaProduccionV > fechaExpiracionV) THEN
 		SET message = "La fecha de producion no puede ser despues de la de expiracion";
@@ -1877,8 +1877,8 @@ BEGIN
 	ELSEIF (newPrecio IS NOT NULL AND newPrecio <= 0) THEN
 		SET message = "El precio del producto no puede ser igual o menor a 0";
     # cantidad negativa
-	ELSEIF (newCantidad IS NOT NULL AND newCantidad > (Select cantidad FROM Lote where idLote = idLoteV)) THEN
-		SET message = "La cantidad no puede superar el maximo ni ser menor al minimo";    
+	ELSEIF (newCantidad IS NOT NULL AND newCantidad < 0) THEN
+		SET message = "La cantidad no puede ser negativo";    
 	# se intenta agregar una fecha que no ha llegado
 	ELSEIF (newFechaProduccion > curdate()) THEN
 		SET message = "La fechaProduccion no puede ser futura";
