@@ -45,7 +45,8 @@ CREATE TABLE Pedido (
         idCliente INT NOT NULL,
         idTipoPago INT NOT NULL,
         idEmpleado INT NOT NULL,
-        idTipoEnvio INT NOT NULL
+        idTipoEnvio INT NOT NULL,
+        idSucursal INT NOT NULL
 );
 #-------------------------------------------------
 DROP TABLE IF EXISTS TipoEnvio;
@@ -245,6 +246,7 @@ ALTER TABLE Pedido ADD CONSTRAINT PedidoXTipoPago_fk FOREIGN KEY(idTipoPago) REF
 ALTER TABLE Pedido ADD CONSTRAINT PedidoXCliente_fk FOREIGN KEY(idCliente) REFERENCES Cliente(idCliente);
 ALTER TABLE Pedido ADD CONSTRAINT PedidoXEmpleado_fk FOREIGN KEY(idEmpleado) REFERENCES Empleado(idEmpleado);
 ALTER TABLE Pedido ADD CONSTRAINT PedidoXTipoEnvio_fk FOREIGN KEY(idTipoEnvio) REFERENCES TipoEnvio(idTipoEnvio);
+ALTER TABLE Pedido ADD CONSTRAINT PedidoXSucursal_fk FOREIGN KEY(idSucursal) REFERENCES Sucursal(idSucursal);
 ALTER TABLE Tarjeta ADD CONSTRAINT TarjetaXCliente_fk FOREIGN KEY(idCliente) REFERENCES Cliente(idCliente);
 ALTER TABLE Criptomoneda ADD CONSTRAINT CriptomonedaXCliente_fk FOREIGN KEY(idCliente) REFERENCES Cliente(idCliente);
 ALTER TABLE Cheque ADD CONSTRAINT ChequeXCliente_fk FOREIGN KEY(idCliente) REFERENCES Cliente(idCliente);
@@ -263,11 +265,5 @@ ALTER TABLE SucursalXProducto ADD CONSTRAINT SucursalXProducto_XSucursal_fk FORE
 ALTER TABLE SucursalXCliente ADD CONSTRAINT SucursalXClienteXSucursal_fk FOREIGN KEY(idSucursal) REFERENCES Sucursal(idSucursal);
 ALTER TABLE SucursalXCliente ADD CONSTRAINT SucursalXClienteXCliente_fk FOREIGN KEY(idCliente) REFERENCES Cliente(idCliente);
 #---------------------------------------------------------------------------------------------------
-
-
-
-
-
-
 
 

@@ -1554,11 +1554,12 @@ $$
 ------------------------------------------------------------------*/
 #CREATE-------------------------------------------------------------
 DELIMITER $$
-CREATE PROCEDURE createPedido (fechaV DATE, idTipoPagoV INT, idClienteV INT, idEmpleadoV INT, idTipoEnvioV INT)
+CREATE PROCEDURE createPedido (fechaV DATE, idTipoPagoV INT, idClienteV INT, idEmpleadoV INT, idTipoEnvioV INT, idSucursalV INT)
 BEGIN
 	DECLARE message VARCHAR(60);
 	
-    IF (fechaV IS NULL OR idTipoPagoV IS NULL OR idClienteV IS NULL) THEN
+    IF (fechaV IS NULL OR idTipoPagoV IS NULL OR idClienteV IS NULL OR 
+		idEmpleadoV IS NULL OR idTipoEnvioV IS NULL OR idSucursalV IS NULL) THEN
 		SET message = "ERROR - Los datos ingresados no pueden ser null";
 	ELSEIF ((SELECT COUNT(*) FROM cliente WHERE idCliente = idClienteV) = 0) THEN
 		SET message = "ERROR -El id cliente no es valido";
@@ -1568,9 +1569,11 @@ BEGIN
 		SET message = "ERROR -El id del empleado no es valido";
 	ELSEIF ((SELECT COUNT(*) FROM TipoEnvio WHERE idTipoEnvio = idTipoEnvioV) = 0) THEN
 		SET message = "ERROR -El id del tipoEnvio no es valido";
+	ELSEIF ((SELECT COUNT(*) FROM Sucursal WHERE idSucursal = idSucursalV) = 0) THEN
+		SET message = "ERROR -El id de la sucursal no es valido";
 	ELSE
-		INSERT INTO Pedido (fecha, idCliente, idTipoPago, idEmpleado, idTipoEnvio)
-					VALUES(fechaV, idClienteV, idTipoPagoV, idEmpleadoV,idTipoEnvioV);
+		INSERT INTO Pedido (fecha, idCliente, idTipoPago, idEmpleado, idTipoEnvio, idSucursal)
+					VALUES(fechaV, idClienteV, idTipoPagoV, idEmpleadoV,idTipoEnvioV, idSucursalV);
 		SET message = "El pedido se ha creado con éxito";
 	END IF;
     SELECT message AS Resultado;        
@@ -1588,7 +1591,7 @@ BEGIN
 		SELECT "No existe Pedido con ese id" AS ERROR;
 	ELSE
 		SELECT Pedido.idPedido, Pedido.fecha, Pedido.idCliente, Pedido.idTipoPago, 
-        Pedido.idEmpleado, Pedido.TipoEnvio FROM Pedido
+        Pedido.idEmpleado, Pedido.TipoEnvio, pedido.idSucursal FROM Pedido
 		WHERE Pedido.idPedido = IFNULL(idPedidoV, Pedido.idPedido);
 	END IF;
 END;
@@ -1596,7 +1599,7 @@ $$
 #UPDATE-------------------------------------------------------------
 DELIMITER $$
 CREATE PROCEDURE updatePedido (idPedidoV INT, newFecha DATE, newIdCliente INT, newIdTipoPago INT, 
-								newIdEmpleado INT, newIdTipoEnvio INT)
+								newIdEmpleado INT, newIdTipoEnvio INT, newIdSucursal INT)
 BEGIN
 	DECLARE message VARCHAR(60);
     
@@ -1620,13 +1623,17 @@ BEGIN
 	# en caso de que el nuevo idTipoEnvio no sea null se verifica que exista   
 	ELSEIF ((newIdTipoEnvio IS NOT NULL AND (SELECT COUNT(*) FROM tipoEnvio where idTipoEnvio = newIdTipoEnvio) = 0)) THEN
 		SET message = "No existe el tipoEnvio al que se quiere asociar";
+	# en caso de que el nuevo idSucursal no sea null se verifica que exista   
+	ELSEIF ((newIdSucursal IS NOT NULL AND (SELECT COUNT(*) FROM sucursal where idSucursal = newIdSucursal) = 0)) THEN
+		SET message = "No existe la sucursal a la que se quiere asociar";
     
 	ELSE
 		UPDATE pedido SET pedido.fecha = IFNULL(newFecha, pedido.fecha),
         pedido.idCliente = IFNULL(newIdCliente, pedido.idCliente),
         pedido.idTipoPago = IFNULL(newIdTipoPago, pedido.idTipoPago),
         pedido.idEmpleado = IFNULL(newIdEmpleado, pedido.idEmpleado),
-        pedido.idTipoEnvio = IFNULL(newIdTipoEnvio, pedido.idTipoEnvio)
+        pedido.idTipoEnvio = IFNULL(newIdTipoEnvio, pedido.idTipoEnvio),
+        pedido.idSucursal = IFNULL(newIdSucursal, pedido.idSucursal)
         WHERE pedido.idPedido = idPedidoV;
         SET message = "Se ha modificado con exito";
 	END IF;
@@ -2327,10 +2334,12 @@ BEGIN
 		SET message = "ERROR - Los datos ingresados son null";
 	ELSEIF (porcAdicionalV < 0.0 OR porcAdicionalV > 0.1)THEN
 		SET message = "ERROR - El porcentaje adicional debe ser mayor o igual a 0 y menor que 0.1";
+	ELSEIF(SELECT COUNT(*) FROM TipoEnvio WHERE TipoEnvio.descripcion = descripcionV) != 0 THEN
+		SET message = "ERROR - Ya existe un tipo de envío con esa descripcion";
 	ELSE 
 		INSERT INTO TipoEnvio (descripcion, porcentajeAdicional)
 					VALUES (descripcionV, porcAdicionalV);
-		SET message = "Se ha creado el nuevo impuesto con éxito";
+		SET message = "Se ha creado el nuevo tipo de envío con éxito";
 	END IF;
     SELECT message AS Resultado;
 END;

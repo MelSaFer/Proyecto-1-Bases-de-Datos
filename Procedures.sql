@@ -210,11 +210,8 @@ MAIN : BEGIN
 END;
 $$
 
-CALL hacerPedidoProveedor(1, 1);
-SELECT * FROM Proveedor
-SELECT * FROM productoxproveedor
 
-
+#PROCE. 6
 
 /*------------------------------------------------------------------
 N -  Productos que han expirado en la sucursal
@@ -289,28 +286,6 @@ BEGIN
 END
 $$
 
-CALL bonoEmpleados();
-
-SELECT * from empleado
-
-SELECT SUM(detalle.cantidad) FROM Empleado
-        INNER JOIN Pedido on Empleado.idEmpleado = Pedido.idEmpleado
-        INNER JOIN Detalle on Pedido.idPedido = Detalle.idPedido
-        WHERE Pedido.fecha >= curdate()-7;
-        
-select * from pedido;
-select
-call updatePedido(1, "2022-11-11", null, null, null, null);
-call createDetalle(50, 1, 1);
-call createDetalle(20, 1, 1);
-
-select * from bono;
-
-SELECT cargo.descripcion FROM Empleado INNER JOIN
-        Cargo on Empleado.idCargo = cargo.idCargo) = "facturador"
-
-select * from detalle
-
 /*------------------------------------------------------------------
 N -  Procedimiento para que el cliente haga el pedido, puede pedir 
 	entrega a domicilio y el costo de envío es un 0,1% del monto pagado. 
@@ -320,7 +295,7 @@ SALIDAS:
 ------------------------------------------------------------------*/
 DROP PROCEDURE IF EXISTS crearPedido;
 DELIMITER $$
-CREATE PROCEDURE crearPedido(idTipoPagoV INT, idClienteV INT, idEmpleadoV INT, idTipoEnvioV INT)
+CREATE PROCEDURE crearPedido(idTipoPagoV INT, idClienteV INT, idEmpleadoV INT, idTipoEnvioV INT, idSucursalV INT)
 BEGIN
 
 	IF (idEmpleadoV IS NOT NULL AND (select cargo.descripcion from empleado 
@@ -329,20 +304,12 @@ BEGIN
 		SELECT "ERROR- El empleado no es facturador" AS Resultado;
     
     else 
-		call createPedido(curdate(), idClienteV, idTipoPagoV, idEmpleadoV, idTipoEnvioV);
+		call createPedido(curdate(), idClienteV, idTipoPagoV, idEmpleadoV, idTipoEnvioV, idSucursalV);
     
     END IF;
 END
 $$
 
-call crearPedido(1, 1, 2, 1);
-call createCargo("facturador");
-call createEmpleado("Rosa", curdate(), 390000, 1, 2)
-select * from empleado
-select * from cargo
-select * from pedido
-
-call crearPedido(1,1,)
 
 DROP PROCEDURE IF EXISTS agregarDetalle;
 DELIMITER $$
@@ -365,9 +332,8 @@ BEGIN
 	DECLARE CONTINUE HANDLER FOR NOT FOUND SET resultadoV = 1;
     
     SET idSucursalSeleccionado = (SELECT sucursal.idSucursal FROM Pedido 
-    INNER JOIN Cliente ON Pedido.idCliente = cliente.idCliente
-    INNER JOIN Sucursal ON Cliente.idSucursal = sucursal.idSucursal
-    WHERE idPedidoV = pedido.idPedido);
+    INNER JOIN Sucursal ON Pedido.idSucursal = Sucursal.idSucursal
+    WHERE sucursal.idSucursal = pedido.idSucursal);
     
     IF (idPedidoV IS NULL) THEN
 		SELECT "El pedido no puede ser null" as Resultado;
@@ -408,79 +374,41 @@ BEGIN
 END
 $$
 
-call agregarDetalle(1, 1, 5);
-select * from detalle;
-select * from sucursalxproducto
-select * from pedido
-select * from tipoEnvio
-
-(SELECT sucursal.idSucursal FROM Pedido INNER JOIN Cliente ON Pedido.idCliente = cliente.idCliente
-    INNER JOIN Sucursal ON Cliente.idSucursal = sucursal.idSucursal
-    WHERE 1 = pedido.idPedido);
-    
-select * from sucursal
-    
-
-
-/*------------------------------------------------------------------
-N -  Consultar montos recolectados por envíos, fechas, sucursal y/o cliente 
-ENTRADAS: 
-SALIDAS: 
-------------------------------------------------------------------*/
-DROP PROCEDURE IF EXISTS montoEnvios;
+#-------------------------------------------------------------------------------
+DROP PROCEDURE IF EXISTS generarReportes;
 DELIMITER $$
-CREATE PROCEDURE bonoEmpleados()
+CREATE PROCEDURE generarReportes(nombrePais VARCHAR(30), nombreProducto VARCHAR(30),
+								fechaInicial DATE, fechaFinal DATE, nombreSucursal VARCHAR(30),
+                                idSucursal INT, idProveedor INT, nombreProveedor VARCHAR(30))
 BEGIN
-	
+	DECLARE totalVentas INT;
+    DECLARE totalGanancias DECIMAL(15,2);
+    DECLARE promedioGanacias DECIMAL(15,2);
+    
+    #SET totalVentas = SELECT SUM(cantidad)
+END
+$$
 
+#--------------------------------------------------------------------------------------
+DROP PROCEDURE IF EXISTS productosMasVendidos;
+DELIMITER $$
+CREATE PROCEDURE productosMasVendidos( idSucursalV INT, fechaInicial DATE, fechaFinal DATE)
+BEGIN
+
+	SELECT Producto.nombreProducto, SUM(Detalle.cantidad) total  FROM Detalle
+    INNER JOIN Producto ON Producto.idProducto = Detalle.idProducto
+    INNER JOIN Pedido ON Pedido.idPedido = Detalle.idPedido
+    INNER JOIN Cliente ON Cliente.idCliente = Pedido.idCliente
+    INNER JOIN SucursalXCliente ON SucursalXCliente.idCliente = Cliente.idCliente
+    WHERE SucursalXCliente.idSucursal = IFNULL(idSucursalV, SucursalXCliente.idSucursal)
+    AND Pedido.fecha <= IFNULL(fechaFinal,Pedido.fecha) AND
+	Pedido.fecha >= IFNULL(fechaInicial,Pedido.fecha)
+	GROUP BY Producto.idProducto
+	ORDER BY (total) DESC
+    LIMIT 3;
 END
 $$
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-SELECT SUM(SucursalXProducto.Cantidad) FROM SucursalXProducto
-	WHERE SucursalXProducto.idProducto = 1 AND 
-    SucursalXProducto.Estado != "Vencido";
-SELECT proveedor.idProveedor FROM proveedor 
-        INNER JOIN  productoxproveedor ON productoxproveedor.idProveedor = proveedor.idProveedor
-        WHERE productoxproveedor.precio = (SELECT MIN(precio) FROM productoxproveedor
-        WHERE idProducto = 1) AND productoxproveedor.idProducto = 1;
-SELECT * FROM PRODUCTO;
-SELECT * FROM productoxproveedor
-SELECT * FROM SucursalXProducto
-
-select * from encargo
-
-
-
-
-DELETE FROM SucursalXProducto WHERE IDSucursalXProducto=9;
-SELECT DISTINCT cantidadMax FROM sucursalXProducto
-		WHERE SucursalXProducto.idProducto = 1
-CALL deletesucursalXProducto(5);
-CALL updateProductoXProveedor(1, NULL, NULL,
-						30, NULL, NULL, NULL);
-
-CALL updateSucursalXProducto(1, null, null, 1, null, null, null, null, null, null);
-                        
-                        
-(SELECT proveedor.idProveedor FROM proveedor 
-			INNER JOIN  productoxproveedor ON productoxproveedor.idProveedor = proveedor.idProveedor
-			WHERE productoxproveedor.precio = (SELECT MIN(precio) FROM productoxproveedor
-			WHERE idProducto = 1) AND productoXProveedor.idProducto = 1
-            AND (SELECT SUM(existencias) FROM productoXProveedor WHERE productoXProveedor.idProducto = 1) > 0);
