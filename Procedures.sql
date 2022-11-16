@@ -1,13 +1,56 @@
 USE proyectoBases;
 
 #PROCEDURES-----------------------------------------------------------------------------------------
+#DROPS
+DROP PROCEDURE IF EXISTS reportesGerenteGeneral;
+DROP PROCEDURE IF EXISTS consultarEmpleados;
+DROP PROCEDURE IF EXISTS consultarProveedores;
+DROP PROCEDURE IF EXISTS revisarProductosSucursal;
+DROP PROCEDURE IF EXISTS hacerPedidoProveedor;
+DROP PROCEDURE IF EXISTS crearPedido;
+DROP PROCEDURE IF EXISTS agregarDetalle;
+DROP PROCEDURE IF EXISTS bonoEmpleados;
+DROP PROCEDURE IF EXISTS montoEnvios;
+DROP PROCEDURE IF EXISTS productosMasVendidos;
+DROP PROCEDURE IF EXISTS clientesFrecuentes;
+DROP PROCEDURE IF EXISTS reporteExpiradosSucursal;
+DROP PROCEDURE IF EXISTS gananciasNetas;
+DROP PROCEDURE IF EXISTS ConsultarPreciosProductos;
+DROP PROCEDURE IF EXISTS consultaProductosProveedor;
+DROP PROCEDURE IF EXISTS informacionBonos;
+DROP PROCEDURE IF EXISTS sacarVencidosInvProveedor;
 /*------------------------------------------------------------------
-1 - Procedimiento paraque el administrador de la sucursal le genere 
-	reportes al gerente general
-No se que reportes hace :o
-ENTRADAS: 
-SALIDAS: 
+1 - Procedimiento para estadísticas de ventas x país, producto y/o 
+	fechas; a nivel de sucursal, todas las sucursales y/o proveedores  
+ENTRADAS: id del pais, id del producto, fecha final, fecha inicial
+			id de la sucursal, id del proveedor, todos opcionales
+SALIDAS: Datos de las ventas por sucursal, pais, producto...
 ------------------------------------------------------------------*/
+DELIMITER $$
+CREATE PROCEDURE reportesGerenteGeneral (idPaisV INT, idProducto INT,
+										fechaFinal DATE, fechaInicial DATE,
+                                        idSucursalV INT, idProveedorV INT)
+BEGIN
+    SELECT Producto.nombreProducto AS "Producto", 
+		Detalle.Costo AS "Precio individual", Detalle.cantidad,
+		SUM(Detalle.Cantidad*Detalle.Costo) totalPorProducto
+		FROM Detalle
+		INNER JOIN Producto ON Producto.idProducto = Detalle.idProducto
+		INNER JOIN Pedido ON Pedido.idPedido = Detalle.idPedido
+        INNER JOIN Sucursal ON Sucursal.idSucursal = Pedido.idSucursal
+        INNER JOIN Canton ON Canton.idCanton = Sucursal.idCanton
+		INNER JOIN Provincia ON Provincia.idProvincia = Canton.idProvincia
+		INNER JOIN Pais ON Pais.idPais = Provincia.idPais
+        INNER JOIN Encargo ON Encargo.idProducto = Producto.idProducto
+		WHERE Pedido.idSucursal = IFNULL(idSucursalV, Pedido.idSucursal)
+		AND Detalle.idProducto = IFNULL(idProducto, Detalle.idProducto)
+		AND Pedido.fecha <= IFNULL(fechaFinal,Pedido.fecha)
+		AND Pedido.fecha >= IFNULL(fechaInicial, Pedido.fecha)
+        AND Encargo.idProveedor = IFNULL(idProveedorV, Encargo.idProveedor)
+        AND Pais.idPais = IFNULL(idPaisV, Pais.idPais)
+        GROUP BY Detalle.idProducto;
+END
+$$
 
 /*------------------------------------------------------------------
 2 - Consultar empleado por sucursal, puesto y fecha de contratación 
@@ -17,7 +60,6 @@ ENTRADAS: el id de las sucursal o el nombre de la sucursal,
 SALIDAS: El conjunto de empleados que comparten las caracteristicas 
 		recibidas-*
 ------------------------------------------------------------------*/
-DROP PROCEDURE IF EXISTS consultarEmpleados;
 DELIMITER $$
 CREATE PROCEDURE consultarEmpleados (idSucursalV INT, nombreSucursalV VARCHAR(30),
 									idPuestoV INT, descripcionV VARCHAR(30), 
@@ -42,13 +84,12 @@ BEGIN
 END;
 $$
 
-call consultarEmpleados (1,null,1,null,null,null);
 /*------------------------------------------------------------------
 3 -  Consultar Proveedor por nombre de producto o nombre de proveedor
 ENTRADAS: Nombre del producto o nombre de proveedor
-SALIDAS: 
+SALIDAS: Conjunto de productos que comparten las caracteristicas
+		recibidas
 ------------------------------------------------------------------*/
-DROP PROCEDURE IF EXISTS consultarProveedores;
 DELIMITER $$
 CREATE PROCEDURE consultarProveedores (nombreProductoV VARCHAR(30),
                                      nombreProveedorV VARCHAR(30))
@@ -62,15 +103,13 @@ BEGIN
 END;
 $$
 
-select * from proveedor
-call consultarProveedores(null, "dos pinos");
 /*------------------------------------------------------------------
 4 -  Procedimiento para revisar los productos que van a expirar y 
 	se ponen en descuento, si está vencido se saca del mostrador
-ENTRADAS: 
-SALIDAS: 
+ENTRADAS: El porcentaje de descuento que se va a aplicar, en caso
+			que se necesite aplicarlo
+SALIDAS: NONE, Notifica que se modifica
 ------------------------------------------------------------------*/
-DROP PROCEDURE IF EXISTS revisarProductosSucursal;
 DELIMITER $$
 CREATE PROCEDURE revisarProductosSucursal(porcDescuentoV DECIMAL(5,2))
 SP: BEGIN
@@ -116,16 +155,14 @@ SP: BEGIN
 END;
 $$
 
-
 /*------------------------------------------------------------------
 5 -  Procedimiento para hacer el pedido del producto a los 
 	proveedores, buscando llegar a la máxima cantidad en el
     inventario, se busca el proveedor que tengo el producto más 
     barato y con existencias 
 ENTRADAS: El id de la sucursal, id del producto  
-SALIDAS: 
+SALIDAS: None- notifica de los cambios
 ------------------------------------------------------------------*/
-DROP PROCEDURE IF EXISTS hacerPedidoProveedor;
 DELIMITER $$
 CREATE PROCEDURE hacerPedidoProveedor ( idSucursalV INT, idProductoV INT)
 MAIN : BEGIN
@@ -154,7 +191,7 @@ MAIN : BEGIN
 									WHERE Lote.idProducto = idProductoV AND
                                     Lote.idSucursal = idSucursalV AND
 									Lote.Estado != "Vencido");
-	select sumProductosEnInventario;
+	#select sumProductosEnInventario;
     IF sumProductosEnInventario IS NULL THEN
 		SET sumProductosEnInventario = 0;
 	END IF;
@@ -188,8 +225,7 @@ MAIN : BEGIN
 			#aqui:)
             IF(sumProductosEnInventario + sumadorVendidos) < maxInv AND idProveedor_VAR = idProveedorSeleccionado THEN
 				IF (existencias_VAR >= (maxInv - (sumProductosEnInventario + sumadorVendidos))) THEN
-					SELECT precio_VAR+(precio_VAR*porcGananciaP) AS "2";
-                    
+					#SELECT precio_VAR+(precio_VAR*porcGananciaP) AS "2";
 					CALL createLote(idSucursalV, idProductoV, 
                     (maxInv - (sumProductosEnInventario + sumadorVendidos)),
                     minInv, maxInv, fechaProduccion_VAR, fechaExpiracion_VAR, 
@@ -201,7 +237,7 @@ MAIN : BEGIN
 					SET sumadorVendidos = sumadorVendidos + (maxInv - sumProductosEnInventario);
 					LEAVE bucle;
 				ELSE
-					SELECT precio_VAR+(precio_VAR*porcGananciaP) AS "1";
+					#SELECT precio_VAR+(precio_VAR*porcGananciaP) AS "1";
 					CALL createLote(idSucursalV, idProductoV, existencias_VAR,
 						minInv, maxInv, fechaProduccion_VAR, fechaExpiracion_VAR, 
 						"En mostrador", (precio_VAR+(precio_VAR*porcGananciaP)));
@@ -212,98 +248,23 @@ MAIN : BEGIN
             END IF;
         END LOOP bucle;
         CLOSE cursorPP;
-		
-        select idProveedorSeleccionado;
+        #select idProveedorSeleccionado;
 		call createEncargo (curdate(), idSucursalV, sumadorVendidos, idProductoV, idProveedorSeleccionado);
 	END IF;
     
 END;
 $$
 
-
-#PROCE. 6
-
 /*------------------------------------------------------------------
-N -  Productos que han expirado en la sucursal
-ENTRADAS: NONE
-SALIDAS: Productos/lotes de producto con estado expirado
-------------------------------------------------------------------*/
-DROP PROCEDURE IF EXISTS reporteExpiradosSucursal;
-DELIMITER $$
-CREATE PROCEDURE reporteExpiradosSucursal(idSucursal INT)
-BEGIN
-	IF (idSucursal IS NOT NULL AND (SELECT COUNT(*) FROM Sucursal
-		WHERE Sucursal.idSucursal = idSucursal) = 0 ) THEN
-        SELECT "ERROR- El id ingresado no existe";
-	ELSE
-		SELECT Producto.idProducto, Producto.nombreProducto, Categoria. descripcion,
-			Lote.cantidad, Lote.estado FROM producto
-			INNER JOIN Categoria ON Categoria.idCategoria = Producto.idCategoria
-			INNER JOIN Lote ON Lote.idProducto = Producto.idProducto
-			WHERE Lote.estado = "Vencido"
-			AND Lote.idSucursal = IFNULL(idSucursal, Lote.idSucursal);
-	END IF;
-END
-$$
-
-/*------------------------------------------------------------------
-N -  Procedimiento para dar bonos a los empleados que superen 1000 ventas
-ENTRADAS: 
-SALIDAS: 
-------------------------------------------------------------------*/
-DROP PROCEDURE IF EXISTS bonoEmpleados;
-DELIMITER $$
-CREATE PROCEDURE bonoEmpleados()
-BEGIN
-
-	DECLARE resultadoV INTEGER DEFAULT 0;
-    DECLARE idEmpleadoV INT;
-    DECLARE nombreV VARCHAR(30);
-    DECLARE salarioBaseV DECIMAL(15,2);
-    DECLARE idSucursalV INT;
-    DECLARE idCargoV INT;
-
-	DECLARE cursorEmpleado CURSOR FOR SELECT idEmpleado, nombre, 
-		salarioBase, idSucursal, idCargo FROM Empleado;
-	DECLARE CONTINUE HANDLER FOR NOT FOUND SET resultadoV = 1;
-
-	
-	OPEN cursorEmpleado;
-    bucle: LOOP
-		FETCH cursorEmpleado INTO idEmpleadoV, nombreV, 
-		salarioBaseV, idSucursalV, idCargoV;
-        
-        IF resultadoV = 1 then 
-			leave bucle;
-		end if;
-        
-        
-        IF (SELECT SUM(detalle.cantidad) FROM Empleado
-        INNER JOIN Pedido on Empleado.idEmpleado = Pedido.idEmpleado
-        INNER JOIN Detalle on Pedido.idPedido = Detalle.idPedido
-        WHERE Pedido.fecha >= curdate()-7) > 1000 AND (SELECT cargo.descripcion FROM Empleado INNER JOIN
-        Cargo on Empleado.idCargo = cargo.idCargo WHERE Empleado.idEmpleado = idEmpleadoV) = "facturador" THEN
-        
-        call createBono(100000, curdate(), idEmpleadoV);
-		
-        #SELECT idEmpleadoV;
-        
-        END IF;
-		
-	END LOOP bucle;
-    CLOSE cursorEmpleado;
-
-END
-$$
-
-/*------------------------------------------------------------------
-N -  Procedimiento para que el cliente haga el pedido, puede pedir 
+6 -  Procedimiento para que el cliente haga el pedido, puede pedir 
 	entrega a domicilio y el costo de envío es un 0,1% del monto pagado. 
     Puede pagar con diferentes métodos de pago
-ENTRADAS: 
-SALIDAS: 
+Usa un procedure para crear el pedido y se complementa con el de agregar 
+detalle
+ENTRADAS: id del tipo de pago, idCliente, idEmpleado, idTipo de envio
+		idSucursal
+SALIDAS: Mensajes de resultado
 ------------------------------------------------------------------*/
-DROP PROCEDURE IF EXISTS crearPedido;
 DELIMITER $$
 CREATE PROCEDURE crearPedido(idTipoPagoV INT, idClienteV INT, idEmpleadoV INT, idTipoEnvioV INT, idSucursalV INT)
 BEGIN
@@ -322,16 +283,11 @@ BEGIN
     END IF;
 END
 $$
-
-CALL crearPedido(1, 2, 2, 1, 1);
-select * from pedido;
-select * from empleado;
-select * from cargo;
-CALL crearPedido(1, 1, 2, 1, 1);
-CALL Agregardetalle(2, 4, 4);
-#---------------------------
-
-DROP PROCEDURE IF EXISTS agregarDetalle;
+/*------------------------------------------------------------------
+6.1 -  Procedimiento para agregar detalles al pedido
+ENTRADAS: 
+SALIDAS: 
+------------------------------------------------------------------*/
 DELIMITER $$
 CREATE PROCEDURE agregarDetalle(idPedidoV INT, idProductoV INT, cantidadV INT)
 BEGIN
@@ -403,50 +359,10 @@ BEGIN
 END
 $$
 
-
-
-#-------------------------------------------------------------------------------
-DROP PROCEDURE IF EXISTS generarReportes;
-DELIMITER $$
-CREATE PROCEDURE generarReportes(nombrePais VARCHAR(30), nombreProducto VARCHAR(30),
-								fechaInicial DATE, fechaFinal DATE, nombreSucursal VARCHAR(30),
-                                idSucursal INT, idProveedor INT, nombreProveedor VARCHAR(30))
-BEGIN
-	DECLARE totalVentas INT;
-    DECLARE totalGanancias DECIMAL(15,2);
-    DECLARE promedioGanacias DECIMAL(15,2);
-    
-    #SET totalVentas = SELECT SUM(cantidad)
-END
-$$
-
-#--------------------------------------------------------------------------------------
-DROP PROCEDURE IF EXISTS productosMasVendidos;
-DELIMITER $$
-CREATE PROCEDURE productosMasVendidos( idSucursalV INT, fechaInicial DATE, fechaFinal DATE)
-BEGIN
-
-	SELECT Producto.nombreProducto, SUM(Detalle.cantidad) total  FROM Detalle
-    INNER JOIN Producto ON Producto.idProducto = Detalle.idProducto
-    INNER JOIN Pedido ON Pedido.idPedido = Detalle.idPedido
-    INNER JOIN Cliente ON Cliente.idCliente = Pedido.idCliente
-    INNER JOIN SucursalXCliente ON SucursalXCliente.idCliente = Cliente.idCliente
-    WHERE SucursalXCliente.idSucursal = IFNULL(idSucursalV, SucursalXCliente.idSucursal)
-    AND Pedido.fecha <= IFNULL(fechaFinal,Pedido.fecha) AND
-	Pedido.fecha >= IFNULL(fechaInicial,Pedido.fecha)
-	GROUP BY Producto.idProducto
-	ORDER BY (total) DESC
-    LIMIT 3;
-END
-$$
-
-CALL productosMasVendidos(NULL, NULL, NULL);
 /*------------------------------------------------------------------
-N -  Consultar montos recolectados por envíos, fechas, sucursal y/o cliente 
-ENTRADAS: 
-SALIDAS: 
+7 -  Consultar montos recolectados por envíos, fechas, sucursal y/o cliente 
+ENTRADAS: idTipoEnvioV, fechI, fechF, idSucursalV, idClienteV 
 ------------------------------------------------------------------*/
-DROP PROCEDURE IF EXISTS montoEnvios;
 DELIMITER $$
 CREATE PROCEDURE montoEnvios(idTipoEnvioV INT, fechI DATE, fechF DATE, idSucursalV INT, idClienteV INT)
 BEGIN
@@ -466,9 +382,79 @@ BEGIN
 END
 $$
 
+/*------------------------------------------------------------------
+8 -  Procedimiento para dar bonos a los empleados que superen 1000 ventas
+ENTRADAS: NONE
+------------------------------------------------------------------*/
+DELIMITER $$
+CREATE PROCEDURE bonoEmpleados()
+BEGIN
 
-#-----------------------------------------------------------------------------------
-DROP PROCEDURE IF EXISTS clientesFrecuentes;
+	DECLARE resultadoV INTEGER DEFAULT 0;
+    DECLARE idEmpleadoV INT;
+    DECLARE nombreV VARCHAR(30);
+    DECLARE salarioBaseV DECIMAL(15,2);
+    DECLARE idSucursalV INT;
+    DECLARE idCargoV INT;
+
+	DECLARE cursorEmpleado CURSOR FOR SELECT idEmpleado, nombre, 
+		salarioBase, idSucursal, idCargo FROM Empleado;
+	DECLARE CONTINUE HANDLER FOR NOT FOUND SET resultadoV = 1;
+
+	
+	OPEN cursorEmpleado;
+    bucle: LOOP
+		FETCH cursorEmpleado INTO idEmpleadoV, nombreV, 
+		salarioBaseV, idSucursalV, idCargoV;
+        
+        IF resultadoV = 1 then 
+			leave bucle;
+		end if;
+        
+        IF (SELECT SUM(detalle.cantidad) FROM Empleado
+        INNER JOIN Pedido on Empleado.idEmpleado = Pedido.idEmpleado
+        INNER JOIN Detalle on Pedido.idPedido = Detalle.idPedido
+        WHERE Pedido.fecha >= curdate()-7) > 1000 AND (SELECT cargo.descripcion FROM Empleado INNER JOIN
+        Cargo on Empleado.idCargo = cargo.idCargo WHERE Empleado.idEmpleado = idEmpleadoV) = "facturador" THEN
+        
+        call createBono(100000, curdate(), idEmpleadoV);
+        
+        END IF;
+		
+	END LOOP bucle;
+    CLOSE cursorEmpleado;
+
+END
+$$
+
+/*------------------------------------------------------------------
+9 -  Productos mas vendidos
+ENTRADAS: la sucursal, rango de fechas
+SALIDAS: Top 03 productos mas vendidos
+------------------------------------------------------------------*/
+DELIMITER $$
+CREATE PROCEDURE productosMasVendidos( idSucursalV INT, fechaInicial DATE, fechaFinal DATE)
+BEGIN
+
+	SELECT Producto.nombreProducto, SUM(Detalle.cantidad) total  FROM Detalle
+    INNER JOIN Producto ON Producto.idProducto = Detalle.idProducto
+    INNER JOIN Pedido ON Pedido.idPedido = Detalle.idPedido
+    INNER JOIN Cliente ON Cliente.idCliente = Pedido.idCliente
+    INNER JOIN SucursalXCliente ON SucursalXCliente.idCliente = Cliente.idCliente
+    WHERE SucursalXCliente.idSucursal = IFNULL(idSucursalV, SucursalXCliente.idSucursal)
+    AND Pedido.fecha <= IFNULL(fechaFinal,Pedido.fecha) AND
+	Pedido.fecha >= IFNULL(fechaInicial,Pedido.fecha)
+	GROUP BY Producto.idProducto
+	ORDER BY (total) DESC
+    LIMIT 3;
+END
+$$
+
+/*------------------------------------------------------------------
+10 -  Clientes frecuentes, top 10
+ENTRADAS: id de la sucursal
+SALIDAS: top 10 clientes que han hecho mas pedidos
+------------------------------------------------------------------*/
 DELIMITER $$
 CREATE PROCEDURE clientesFrecuentes(idSucursalV INT)
 BEGIN
@@ -481,86 +467,33 @@ BEGIN
 END;
 $$
 
-#----------------------------------------------------------------------
-DROP PROCEDURE IF EXISTS reportesGerenteGeneral;
+/*------------------------------------------------------------------
+11 -  Productos que han expirado en la sucursal
+ENTRADAS: idSucursal
+SALIDAS: Productos/lotes de producto con estado expirado
+------------------------------------------------------------------*/
 DELIMITER $$
-CREATE PROCEDURE reportesGerenteGeneral (idPaisV INT, idProducto INT,
-										fechaFinal DATE, fechaInicial DATE,
-                                        idSucursalV INT, idProveedorV INT)
+CREATE PROCEDURE reporteExpiradosSucursal(idSucursal INT)
 BEGIN
-	#DUDA- ¿QUÉ ESTADÍSTICAS?
-    SELECT Producto.nombreProducto AS "Producto", 
-		Detalle.Costo AS "Precio individual", Detalle.cantidad,
-		SUM(Detalle.Cantidad*Detalle.Costo) AS "Total de ventas"
-		FROM Detalle
-		INNER JOIN Producto ON Producto.idProducto = Detalle.idProducto
-		INNER JOIN Pedido ON Pedido.idPedido = Detalle.idPedido
-		WHERE Pedido.idSucursal = IFNULL(idSucursalV, Pedido.idSucursal)
-		AND Detalle.idProducto = IFNULL(idProducto, Detalle.idProducto)
-		AND Pedido.fecha <= IFNULL(fechaFinal,Pedido.fecha)
-		AND Pedido.fecha >= IFNULL(fechaInicial, Pedido.fecha)
-        GROUP BY idProducto;
+	IF (idSucursal IS NOT NULL AND (SELECT COUNT(*) FROM Sucursal
+		WHERE Sucursal.idSucursal = idSucursal) = 0 ) THEN
+        SELECT "ERROR- El id ingresado no existe";
+	ELSE
+		SELECT Producto.idProducto, Producto.nombreProducto, Categoria. descripcion,
+			Lote.cantidad, Lote.estado FROM producto
+			INNER JOIN Categoria ON Categoria.idCategoria = Producto.idCategoria
+			INNER JOIN Lote ON Lote.idProducto = Producto.idProducto
+			WHERE Lote.estado = "Vencido"
+			AND Lote.idSucursal = IFNULL(idSucursal, Lote.idSucursal);
+	END IF;
 END
 $$
-CALL reportesGerenteGeneral(NULL, NULL, NULL, NULL, NULL, NULL);
 
-
-SELECT Producto.nombreProducto AS "Producto", 
-	Detalle.Costo AS "Precio individual", Detalle.cantidad,
-	SUM(Detalle.Cantidad*Detalle.Costo) AS "Total de ventas"
-    FROM Detalle
-    INNER JOIN Producto ON Producto.idProducto = Detalle.idProducto
-    INNER JOIN Pedido ON Pedido.idPedido = Detalle.idPedido
-    WHERE Pedido.idSucursal = 1
-    AND Detalle.idProducto = 2
-    AND Pedido.fecha <= "2022-11-16"
-    AND Pedido.fecha >= "2022-11-01";
-    
-#------------------------------------------------------------------------
-
-DROP PROCEDURE IF EXISTS ConsultarPreciosProductos;
-DELIMITER $$
-CREATE PROCEDURE ConsultarPreciosProductos (idProductoV INT)
-BEGIN
-	SELECT (Lote.Precio*Categoria.porcImpuesto+Lote.precio) AS Precio,
-    Producto.nombreProducto FROM Producto 
-    INNER JOIN Lote ON Lote.idProducto = Producto.idProducto
-	INNER JOIN Categoria ON Categoria.idCategoria = producto.idCategoria
-    WHERE Producto.idProducto = IFNULL(idProductoV, Producto.idProducto)
-    GROUP BY Producto.idProducto;
-		
-END
-$$
-CALL ConsultarPreciosProductos(1);
-
-#----------------------------------------------------------------------
-DROP PROCEDURE IF EXISTS informacionBonos;
-DELIMITER $$
-CREATE PROCEDURE informacionBonos (idSucursalV INT, idPaisV INT,
-									FechaI DATE, FechaF DATE)
-BEGIN
-	SELECT Bono.idBono, Bono.fecha, Bono.monto, Empleado.Nombre
-    FROM Bono
-    INNER JOIN Empleado ON Empleado.idEmpleado = Bono.idEmpleado
-    INNER JOIN Sucursal ON Sucursal.idSucursal = Empleado.idSucursal
-    INNER JOIN Canton ON Canton.idCanton = Sucursal.idCanton
-    INNER JOIN Provincia ON Provincia.idProvincia = Canton.idProvincia
-    INNER JOIN Pais ON Pais.idPais = Provincia.idPais
-    WHERE Sucursal.idSucursal = IFNULL(idSucursalV,Sucursal.idSucursal) AND
-    Pais.idPais = IFNULL(idPaisV, Pais.idPais) AND
-    Bono.Fecha >= IFNULL(FechaI, Bono.Fecha) AND 
-    Bono.Fecha <= IFNULL(FechaF, Bono.Fecha);
-END
-$$
-CALL informacionBonos(2, NULL, NULL, NULL);
-
-#----------------------------------------------------------------------
-# Ganancias netas por fechas, país, sucursales y/o categoría de productos 
-# ganacias: ventas de productos a los clientes, % ganancia extra al precio del proveedor
-# gastos: compra de los productos, pago a los empleados
-# en el encargo se compran productos al precio del proveeor pero sin ganancias
-
-DROP PROCEDURE IF EXISTS gananciasNetas;
+/*------------------------------------------------------------------
+12 -  Ganancias netas
+ENTRADAS: idSucursal
+SALIDAS: Productos/lotes de producto con estado expirado
+------------------------------------------------------------------*/
 DELIMITER $$
 CREATE PROCEDURE gananciasNetas (fechI DATE, fechF DATE, idPaisV INT, idSucursalV INT, idCategoriaProductoV INT)
 BEGIN
@@ -611,4 +544,98 @@ BEGIN
 END
 $$
 
-call gananciasNetas("2007-01-01", "2022-12-31", 1,1,1);
+/*------------------------------------------------------------------
+13 -  Obtener información de bonos recibidos por empleado, fechas, 
+	sucursal, y/o país
+ENTRADAS: idSucursal, idPais, rango de fechas
+------------------------------------------------------------------*/
+DELIMITER $$
+CREATE PROCEDURE informacionBonos (idSucursalV INT, idPaisV INT,
+									FechaI DATE, FechaF DATE)
+BEGIN
+	SELECT Bono.idBono, Bono.fecha, Bono.monto, Empleado.Nombre
+    FROM Bono
+    INNER JOIN Empleado ON Empleado.idEmpleado = Bono.idEmpleado
+    INNER JOIN Sucursal ON Sucursal.idSucursal = Empleado.idSucursal
+    INNER JOIN Canton ON Canton.idCanton = Sucursal.idCanton
+    INNER JOIN Provincia ON Provincia.idProvincia = Canton.idProvincia
+    INNER JOIN Pais ON Pais.idPais = Provincia.idPais
+    WHERE Sucursal.idSucursal = IFNULL(idSucursalV,Sucursal.idSucursal) AND
+    Pais.idPais = IFNULL(idPaisV, Pais.idPais) AND
+    Bono.Fecha >= IFNULL(FechaI, Bono.Fecha) AND 
+    Bono.Fecha <= IFNULL(FechaF, Bono.Fecha);
+END
+$$
+
+/*------------------------------------------------------------------
+14 -  Consultar precios de producto
+ENTRADAS: idPorducto a consultar
+SALIDAS: Precio del producto
+------------------------------------------------------------------*/
+DELIMITER $$
+CREATE PROCEDURE ConsultarPreciosProductos (idProductoV INT)
+BEGIN
+	SELECT (Lote.Precio*Categoria.porcImpuesto+Lote.precio) AS Precio,
+    Producto.nombreProducto FROM Producto 
+    INNER JOIN Lote ON Lote.idProducto = Producto.idProducto
+	INNER JOIN Categoria ON Categoria.idCategoria = producto.idCategoria
+    WHERE Producto.idProducto = IFNULL(idProductoV, Producto.idProducto)
+    GROUP BY Producto.idProducto;
+END
+$$
+
+/*------------------------------------------------------------------
+15 -  Consultar productos por proveedor
+ENTRADAS: idPorveedor
+------------------------------------------------------------------*/
+DELIMITER $$
+CREATE PROCEDURE consultaProductosProveedor(idProveedorV INT)
+BEGIN
+	IF(SELECT COUNT(*) FROM Proveedor
+		INNER JOIN ProductoXProveedor ON ProductoXProveedor.idProveedor = Proveedor.idProveedor
+		INNER JOIN Producto ON Producto.idProducto = ProductoXProveedor.idProducto
+		WHERE Proveedor.idProveedor = IFNULL(idProveedorV,Proveedor.idProveedor)) = 0 THEN
+		SELECT "El proveedor no tiene productos" Resultado;
+	ELSE
+		SELECT Proveedor.nombre, Proveedor.telefono, Proveedor.porcGanancia,
+			Producto.nombreProducto FROM Proveedor
+		INNER JOIN ProductoXProveedor ON ProductoXProveedor.idProveedor = Proveedor.idProveedor
+		INNER JOIN Producto ON Producto.idProducto = ProductoXProveedor.idProducto
+		WHERE Proveedor.idProveedor = IFNULL(idProveedorV,Proveedor.idProveedor);
+	END IF;
+END
+$$
+
+/*------------------------------------------------------------------
+16 -  Sacar los productos vendidos del inventario del proveedor
+ENTRADAS: None
+------------------------------------------------------------------*/
+DELIMITER $$
+CREATE PROCEDURE sacarVencidosInvProveedor()
+BEGIN
+	DECLARE resultadoV INTEGER DEFAULT 0;
+    DECLARE idProductoXProveedorV INT;
+    DECLARE idProductoV INT;
+    DECLARE fechaExpiracionV DATE;
+    
+	DECLARE cursorPromo CURSOR FOR SELECT idProductoXProveedor, idProducto, 
+		fechaExpiracion FROM productoxproveedor;
+	DECLARE CONTINUE HANDLER FOR NOT FOUND SET resultadoV = 1;
+    
+    OPEN cursorPromo;
+    bucle: LOOP
+		FETCH cursorPromo INTO idProductoXProveedorV, idProductoV, 
+		fechaExpiracionV;
+        
+		IF resultadoV = 1 THEN
+			LEAVE bucle;
+		END IF;
+        IF(fechaExpiracionV < (SELECT CURDATE())) THEN
+			CALL deleteProductoXProveedor(idProductoXProveedorV);
+			SELECT "Se Vencio:(";
+		END IF;
+	END LOOP bucle;
+    CLOSE cursorPromo;
+END
+$$
+
