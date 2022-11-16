@@ -33,7 +33,7 @@ CALL createSucursal("Super de Juan 2", "150m del Parque Central", 2, 1);	#id=2
 
 #CARGOS-------------------------------------------
 CALL CreateCargo("Administracion"); 	#id= 1
-CALL CreateCargo("Facturadores");		#id= 2
+CALL CreateCargo("Facturador");			#id= 2
 CALL CreateCargo("Acomodadores");		#id= 3
 CALL CreateCargo("Carniceros");			#id= 4
 CALL CreateCargo("Verdureros");			#id= 5
@@ -42,6 +42,7 @@ CALL CreateCargo("Gerencia");			#id= 7
 CALL CreateCargo("Conserje");			#id= 8
 
 #CALL deleteCargo(2);
+
 
 #EMPLEADOS-------------------------------------
 #CREATE- Recibe: nombre, fecha contratacion, salario base, id sucursal, id cargo
@@ -67,10 +68,10 @@ CALL CreateBono(10000, "2022-7-15", 2);
 
 #CATEGORIAS----------------------------------------------
 #CREATE- Recibe: descripcion y % del impuesto
-CALL createCategoria ("Lacteos", 0.02);	#id= 1
-CALL createCategoria ("Frijoles", 0.00);	#id= 2
-CALL createCategoria ("Licor", 0.03);		#id= 3
-CALL createCategoria ("Arroz", 0.0);		#id= 4
+CALL createCategoria ("Lacteos", 0.02);			#id= 1
+CALL createCategoria ("Canasta básica", 0.00);	#id= 2
+CALL createCategoria ("Licores", 0.03);			#id= 3
+CALL createCategoria ("Papeleria", 0.0);		#id= 4
 #CALL deleteCategoria(2);
 
 #PROVEEDORES--------------------------------------------
@@ -119,8 +120,8 @@ CALL CreateProducto("Arroz Luisiana 1k", 4, 20, 60);		#id= 5
 CALL createLote (1, 1, 10, "2022-11-9", "2022-11-18", "En Mostrador", 1000); #id= 1
 CALL createLote (1, 2, 5, "2022-11-9", "2022-11-18", "En Mostrador", 1200); #id= 2
 CALL createLote (1, 4, 5, "2022-10-9", "2024-11-18", "En Mostrador", 1500); #id= 3
-select * from lote;
-call updateLote(1,null,null,11,null,null,null,null);
+#select * from lote;
+#call updateLote(1,null,null,11,null,null,null,null);
 #CALL deleteSucursalXProducto(1);
 
 #PROMOCION------------------------------------------------
@@ -182,4 +183,16 @@ CALL reporteExpiradosSucursal(1);
 CALL consultarEmpleados(NULL, NULL, NULL, NULL, NULL, NULL);
 #Consultar proveedores por nombre proveedor o nombre producto
 CALL consultarProveedores(NULL, "Dos Pinos");
+#
 call montoEnvios(2,"2022-11-10","2022-11-30",1,1);
+#
+call hacerPedidoProveedor(1, 1);
+#
+CALL clientesFrecuentes(NULL);
+
+call hacerPedidoProveedor(1, 1);
+select * from proveedor;
+select * from productoXProveedor;
+select * from Lote;
+select * from producto;
+

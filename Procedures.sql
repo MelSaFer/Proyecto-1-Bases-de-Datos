@@ -116,7 +116,6 @@ SP: BEGIN
 END;
 $$
 
-call revisarProductosSucursal(0.03);
 
 /*------------------------------------------------------------------
 5 -  Procedimiento para hacer el pedido del producto a los 
@@ -156,10 +155,10 @@ MAIN : BEGIN
                                     Lote.idSucursal = idSucursalV AND
 									Lote.Estado != "Vencido");
 	select sumProductosEnInventario;
-	SET minInv = (SELECT DISTINCT cantidadMin FROM Lote
-		WHERE Lote.idProducto = idProductoV);
-	SET maxInv = (SELECT DISTINCT cantidadMax FROM Lote
-		WHERE Lote.idProducto = idProductoV);
+	SET minInv = (SELECT DISTINCT cantidadMin FROM Producto
+		WHERE idProducto = idProductoV);
+	SET maxInv = (SELECT DISTINCT cantidadMax FROM Producto
+		WHERE idProducto = idProductoV);
 	#IF (idProducto IS NULL)]
     #SELECT sumProductosEnInventario AS Resultado;
     IF (sumProductosEnInventario <= minInv) THEN
@@ -217,11 +216,7 @@ MAIN : BEGIN
 END;
 $$
 
-call hacerPedidoProveedor(1, 1);
-select * from proveedor;
-select * from productoXProveedor;
-select * from Lote;
-call updateLote(3,null,null,0,null,null,null,null,"mostrador",null);
+
 #PROCE. 6
 
 /*------------------------------------------------------------------
@@ -313,13 +308,20 @@ BEGIN
 		INNER JOIN Cargo on empleado.idCargo = cargo.idCargo
 		where empleado.idEmpleado = idEmpleadoV) != "facturador") THEN
 		SELECT "ERROR- El empleado no es facturador" AS Resultado;
-    
-    else 
-		call createPedido(curdate(), idClienteV, idTipoPagoV, idEmpleadoV, idTipoEnvioV, idSucursalV);
+	ELSEIF (SELECT COUNT(*) FROM sucursalxcliente 
+		WHERE sucursalxcliente.idCliente = idClienteV AND
+        sucursalxcliente.idSucursal = idSucursalV) = 0 THEN
+        SELECT "ERROR- El cliente no se encuentra registrado en la sucursal" AS Resultado;
+    ELSE 
+		call createPedido(curdate(), idTipoPagoV,idClienteV, idEmpleadoV, idTipoEnvioV, idSucursalV);
     
     END IF;
 END
 $$
+CALL crearPedido(1, 2, 2, 1, 1);
+select * from pedido;
+CALL crearPedido(1, 1, 2, 1, 1);
+CALL Agregardetalle(1, 2, 1);
 #---------------------------
 
 DROP PROCEDURE IF EXISTS agregarDetalle;
@@ -342,7 +344,7 @@ BEGIN
     idSucursal, idProducto, cantidad, estado, precio FROM Lote;
 	DECLARE CONTINUE HANDLER FOR NOT FOUND SET resultadoV = 1;
     
-    SET idSucursalSeleccionado = (SELECT sucursal.idSucursal FROM Pedido 
+    SET idSucursalSeleccionado = (SELECT DISTINCT sucursal.idSucursal FROM Pedido 
     INNER JOIN Sucursal ON Pedido.idSucursal = Sucursal.idSucursal
     WHERE sucursal.idSucursal = pedido.idSucursal);
     
@@ -374,10 +376,7 @@ BEGIN
                     SET contadorProducto = contadorProducto + (cantidad_Var);
                     call createDetalle(cantidad_Var, cantidad_Var * precioV, idPedidoV, idProductoV);
 				END IF;
-                
 			END IF;
-			
-
 		END LOOP bucle;
 		CLOSE cursorLote;
         
@@ -420,7 +419,7 @@ BEGIN
 END
 $$
 
-
+CALL productosMasVendidos(NULL, NULL, NULL);
 /*------------------------------------------------------------------
 N -  Consultar montos recolectados por envíos, fechas, sucursal y/o cliente 
 ENTRADAS: 
@@ -446,4 +445,91 @@ BEGIN
 END
 $$
 
+
+#-----------------------------------------------------------------------------------
+DROP PROCEDURE IF EXISTS clientesFrecuentes;
+DELIMITER $$
+CREATE PROCEDURE clientesFrecuentes(idSucursalV INT)
+BEGIN
+	SELECT Cliente.nombre, Cliente.correo,COUNT(*) totalPedidos FROM Pedido
+    INNER JOIN Cliente ON Pedido.idCliente = Cliente.idCliente
+    WHERE Pedido.idSucursal = IFNULL(idSucursalV,Pedido.idSucursal)
+    GROUP BY Cliente.idCliente
+    ORDER BY totalPedidos DESC
+    LIMIT 10;
+END;
+$$
+
+#----------------------------------------------------------------------
+DROP PROCEDURE IF EXISTS reportesGerenteGeneral;
+DELIMITER $$
+CREATE PROCEDURE reportesGerenteGeneral (idPaisV INT, idProducto INT,
+										fechaFinal DATE, fechaInicial DATE,
+                                        idSucursalV INT, idProveedorV INT)
+BEGIN
+	#DUDA- ¿QUÉ ESTADÍSTICAS?
+    SELECT Producto.nombreProducto AS "Producto", 
+		Detalle.Costo AS "Precio individual", Detalle.cantidad,
+		SUM(Detalle.Cantidad*Detalle.Costo) AS "Total de ventas"
+		FROM Detalle
+		INNER JOIN Producto ON Producto.idProducto = Detalle.idProducto
+		INNER JOIN Pedido ON Pedido.idPedido = Detalle.idPedido
+		WHERE Pedido.idSucursal = IFNULL(idSucursalV, Pedido.idSucursal)
+		AND Detalle.idProducto = IFNULL(idProducto, Detalle.idProducto)
+		AND Pedido.fecha <= IFNULL(fechaFinal,Pedido.fecha)
+		AND Pedido.fecha >= IFNULL(fechaInicial, Pedido.fecha)
+        GROUP BY idProducto;
+END
+$$
+CALL reportesGerenteGeneral(NULL, NULL, NULL, NULL, NULL, NULL);
+
+
+SELECT Producto.nombreProducto AS "Producto", 
+	Detalle.Costo AS "Precio individual", Detalle.cantidad,
+	SUM(Detalle.Cantidad*Detalle.Costo) AS "Total de ventas"
+    FROM Detalle
+    INNER JOIN Producto ON Producto.idProducto = Detalle.idProducto
+    INNER JOIN Pedido ON Pedido.idPedido = Detalle.idPedido
+    WHERE Pedido.idSucursal = 1
+    AND Detalle.idProducto = 2
+    AND Pedido.fecha <= "2022-11-16"
+    AND Pedido.fecha >= "2022-11-01";
+    
+#------------------------------------------------------------------------
+
+DROP PROCEDURE IF EXISTS ConsultarPreciosProductos;
+DELIMITER $$
+CREATE PROCEDURE ConsultarPreciosProductos (idProductoV INT)
+BEGIN
+	SELECT (Lote.Precio*Categoria.porcImpuesto+Lote.precio) AS Precio,
+    Producto.nombreProducto FROM Producto 
+    INNER JOIN Lote ON Lote.idProducto = Producto.idProducto
+	INNER JOIN Categoria ON Categoria.idCategoria = producto.idCategoria
+    WHERE Producto.idProducto = IFNULL(idProductoV, Producto.idProducto)
+    GROUP BY Producto.idProducto;
+		
+END
+$$
+CALL ConsultarPreciosProductos(1);
+
+#----------------------------------------------------------------------
+DROP PROCEDURE IF EXISTS informacionBonos;
+DELIMITER $$
+CREATE PROCEDURE informacionBonos (idSucursalV INT, idPaisV INT,
+									FechaI DATE, FechaF DATE)
+BEGIN
+	SELECT Bono.idBono, Bono.fecha, Bono.monto, Empleado.Nombre
+    FROM Bono
+    INNER JOIN Empleado ON Empleado.idEmpleado = Bono.idEmpleado
+    INNER JOIN Sucursal ON Sucursal.idSucursal = Empleado.idSucursal
+    INNER JOIN Canton ON Canton.idCanton = Sucursal.idCanton
+    INNER JOIN Provincia ON Provincia.idProvincia = Canton.idProvincia
+    INNER JOIN Pais ON Pais.idPais = Provincia.idPais
+    WHERE Sucursal.idSucursal = IFNULL(idSucursalV,Sucursal.idSucursal) AND
+    Pais.idPais = IFNULL(idPaisV, Pais.idPais) AND
+    Bono.Fecha >= IFNULL(FechaI, Bono.Fecha) AND 
+    Bono.Fecha <= IFNULL(FechaF, Bono.Fecha);
+END
+$$
+CALL informacionBonos(2, NULL, NULL, NULL);
 
