@@ -321,12 +321,25 @@ BEGIN
     IF (idPedidoV IS NULL) THEN
 		SELECT "El pedido no puede ser null" as Resultado;
 	
+    ELSEIF(SELECT SUM(Lote.cantidad) FROM Lote 
+			INNER JOIN Sucursal ON Lote.idSucursal = sucursal.idSucursal
+            INNER JOIN Pedido ON Sucursal.idSucursal = pedido.idSucursal
+            INNER JOIN Producto ON Lote.idProducto = Producto.idProducto
+            WHERE pedido.idPedido = idPedidoV
+            AND Producto.idProducto = idProductoV) = 0 THEN
+            
+            SELECT "No hay existencias del producto solicitado" as Resultado;
+	
     ELSE 
 	
 		OPEN cursorLote;
 		bucle: LOOP
 			FETCH cursorLote INTO idLoteV, 
 			idSucursalV, idProducto_VAR, cantidad_VAR, estadoV, precioV;
+            
+            IF resultadoV = 1 THEN
+				LEAVE bucle;
+			END IF;
             
             if((idProducto_VAR = idProductoV) AND estadoV != "vencido" 
             AND cantidad_VAR > 0 AND idSucursalV = idSucursalSeleccionado) THEN
@@ -483,7 +496,7 @@ BEGIN
 			Lote.cantidad, Lote.estado FROM producto
 			INNER JOIN Categoria ON Categoria.idCategoria = Producto.idCategoria
 			INNER JOIN Lote ON Lote.idProducto = Producto.idProducto
-			WHERE Lote.estado = "Vencido"
+			WHERE Lote.estado = "Vencido" AND Lote.cantidad != 0
 			AND Lote.idSucursal = IFNULL(idSucursal, Lote.idSucursal);
 	END IF;
 END
