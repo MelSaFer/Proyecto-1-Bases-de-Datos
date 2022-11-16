@@ -219,7 +219,7 @@ CALL createEncargo("2022-11-11", 1, 10, 1, 2);
 #-----------------------PRUEBAS PROCEDURES------------------------------------
 #1- Porcedure para reportes, recibe id del pais, id del producto, fecha final, fecha inicial
 #			id de la sucursal, id del proveedor, todos opcionales
-CALL reportesGerenteGeneral(NULL, NULL, NULL, NULL, NULL, NULL);
+CALL reportesGerenteGeneral(null, NULL, NULL, NULL, NULL, NULL);
 
 #2- Consultar empleados, recibe el idsucursal, nombre, idPuesto, descripcion puesto, rango de fechas de contratacion
 CALL consultarEmpleados(NULL, NULL, NULL, NULL, NULL, NULL);
@@ -241,13 +241,16 @@ CALL crearPedido(1, 5, 2, 1, 1);	#Pedido de cliente de sucursal si no tiene cuen
 CALL crearPedido(1, 3, 8, 1, 2); 	#Empleado no pertenece a la sucursal
 CALL crearPedido(1, 5, 9, 1, 3);
 #idpedido, idProducto,idcantidad
-CALL Agregardetalle(1, 3, 2);
-CALL Agregardetalle(2, 1, 10);
+CALL Agregardetalle(1, 1, 2);
+CALL Agregardetalle(2, 4, 3);
 
 SELECT * FROM Lote;
 SELECT * FROM Pedido;
 SELECT * FROM Detalle;
 SELECT * FROM Empleado;
+SELECT * FROM producto;
+SELECT * FROM Encargo;
+SELECT * FROM ProductoXProveedor;
 #7- Consultar monto de envios, recibe el idTipoEnvioV, fechI, fechF, idSucursalV, idClienteV 
 call montoEnvios(2,"2022-11-10","2022-11-30",1,1);
 

@@ -31,8 +31,7 @@ CREATE PROCEDURE reportesGerenteGeneral (idPaisV INT, idProducto INT,
 										fechaFinal DATE, fechaInicial DATE,
                                         idSucursalV INT, idProveedorV INT)
 BEGIN
-    SELECT Producto.nombreProducto AS "Producto", 
-		Detalle.Costo AS "Precio individual", Detalle.cantidad,
+    SELECT Producto.nombreProducto AS "Producto", Detalle.cantidad, detalle.costo,
 		SUM(Detalle.Cantidad*Detalle.Costo) totalPorProducto
 		FROM Detalle
 		INNER JOIN Producto ON Producto.idProducto = Detalle.idProducto
@@ -41,14 +40,14 @@ BEGIN
         INNER JOIN Canton ON Canton.idCanton = Sucursal.idCanton
 		INNER JOIN Provincia ON Provincia.idProvincia = Canton.idProvincia
 		INNER JOIN Pais ON Pais.idPais = Provincia.idPais
-        INNER JOIN Encargo ON Encargo.idProducto = Producto.idProducto
+        #INNER JOIN Encargo ON Encargo.idProducto = Producto.idProducto
 		WHERE Pedido.idSucursal = IFNULL(idSucursalV, Pedido.idSucursal)
 		AND Detalle.idProducto = IFNULL(idProducto, Detalle.idProducto)
 		AND Pedido.fecha <= IFNULL(fechaFinal,Pedido.fecha)
 		AND Pedido.fecha >= IFNULL(fechaInicial, Pedido.fecha)
-        AND Encargo.idProveedor = IFNULL(idProveedorV, Encargo.idProveedor)
+        #AND Encargo.idProveedor = IFNULL(idProveedorV, Encargo.idProveedor)
         AND Pais.idPais = IFNULL(idPaisV, Pais.idPais)
-        GROUP BY Detalle.idProducto;
+        GROUP BY Detalle.idProducto, Detalle.cantidad, detalle.costo;
 END
 $$
 
@@ -311,13 +310,17 @@ BEGIN
     DECLARE cursorLote CURSOR FOR SELECT idLote, 
     idSucursal, idProducto, cantidad, estado, precio FROM Lote;
 	DECLARE CONTINUE HANDLER FOR NOT FOUND SET resultadoV = 1;
+
     
     SET idSucursalSeleccionado = (SELECT DISTINCT sucursal.idSucursal FROM Pedido 
     INNER JOIN Sucursal ON Pedido.idSucursal = Sucursal.idSucursal
     WHERE sucursal.idSucursal = pedido.idSucursal AND Pedido.idPedido = idPedidoV);
     
-    SET porcPromocion = (SELECT promocion.porcentajeDesc FROM promocion INNER JOIN Lote
-						ON promocion.idLote = lote.idLote);
+    
+    SET porcPromocion = (SELECT DISTINCT promocion.porcentajeDesc FROM promocion INNER JOIN Lote
+						ON promocion.idLote = lote.idLote
+                        WHERE promocion.fechaInicial <= curdate()
+                        AND promocion.fechaFinal >= curdate());
 	IF (porcPromocion IS NULL) THEN
 		SET porcPromocion = 0.0;
 	END IF;
@@ -388,7 +391,7 @@ DELIMITER $$
 CREATE PROCEDURE montoEnvios(idTipoEnvioV INT, fechI DATE, fechF DATE, idSucursalV INT, idClienteV INT)
 BEGIN
 
-	SELECT SUM((detalle.cantidad*detalle.costo)*tipoEnvio.porcentajeAdicional) FROM Sucursal 
+	SELECT SUM((detalle.cantidad*detalle.costo)*tipoEnvio.porcentajeAdicional) AS MontoDeEnvios FROM Sucursal 
 		INNER JOIN SucursalXCliente ON Sucursal.idsucursal = SucursalXCliente.idCliente
 		INNER JOIN Pedido ON SucursalXCliente.idCliente = pedido.idCliente
         INNER JOIN Detalle ON Pedido.idpedido = detalle.idPedido
@@ -521,6 +524,7 @@ BEGIN
 	DECLARE ganancias INT;
     DECLARE perdidas INT;
     
+    
     SET ganancias = (
 		SELECT SUM(Detalle.costo * Detalle.Cantidad) FROM Detalle 
 			INNER JOIN Pedido ON Detalle.idPedido = Pedido.idPedido
@@ -537,12 +541,8 @@ BEGIN
 	IF ganancias IS NULL THEN
 		SET ganancias = 0;
 	END IF;
-	select ProductoXProveedor.precio AS Resul FROM Encargo 
-			INNER JOIN Producto ON Encargo.idProducto = Producto.idProducto 
-            INNER JOIN Proveedor ON Encargo.idProveedor = Proveedor.idProveedor
-            INNER Join ProductoXProveedor ON ProductoXProveedor.idProveedor = Encargo.idProveedor 
-            AND ProductoXProveedor.idProducto = Encargo.idProducto;
-    SET perdidas = (SELECT SUM(encargo.cantidad * (select ProductoXProveedor.precio FROM Encargo 
+	
+    SET perdidas = (SELECT SUM(encargo.cantidad * (select MIN(ProductoXProveedor.precio) FROM Encargo 
 			INNER JOIN Producto ON Encargo.idProducto = Producto.idProducto 
             INNER JOIN Proveedor ON Encargo.idProveedor = Proveedor.idProveedor
             INNER Join ProductoXProveedor ON ProductoXProveedor.idProveedor = Encargo.idProveedor 
@@ -560,6 +560,7 @@ BEGIN
             AND Pais.idPais = IFNULL(idPaisV, Pais.idPais)
             AND Encargo.fecha >= IFNULL(fechI, Encargo.Fecha)
             AND Encargo.fecha <= IFNULL(fechF, Encargo.Fecha));
+	
 	IF Perdidas IS NULL THEN
 		SET Perdidas = 0;
 	END IF;
@@ -601,11 +602,12 @@ DELIMITER $$
 CREATE PROCEDURE ConsultarPreciosProductos (idProductoV INT)
 BEGIN
 	SELECT ((Lote.Precio * Categoria.porcImpuesto) + Lote.precio) AS Precio,
-    Producto.nombreProducto FROM Producto 
+    Producto.nombreProducto, Sucursal.idSucursal FROM Producto 
     INNER JOIN Lote ON Lote.idProducto = Producto.idProducto
 	INNER JOIN Categoria ON Categoria.idCategoria = producto.idCategoria
+    INNER JOIN Sucursal ON Lote.idSucursal = Sucursal.idSucursal
     WHERE Producto.idProducto = IFNULL(idProductoV, Producto.idProducto)
-    GROUP BY Producto.idProducto;
+    GROUP BY (Lote.Precio * Categoria.porcImpuesto) + Lote.precio, Producto.nombreProducto, Sucursal.idSucursal;
 END
 $$
 
@@ -664,3 +666,9 @@ BEGIN
 END
 $$
 
+
+#select ProductoXProveedor.precio AS Resul FROM Encargo 
+#			INNER JOIN Producto ON Encargo.idProducto = Producto.idProducto 
+ #           INNER JOIN Proveedor ON Encargo.idProveedor = Proveedor.idProveedor
+  #          INNER Join ProductoXProveedor ON ProductoXProveedor.idProveedor = Encargo.idProveedor 
+   #         AND ProductoXProveedor.idProducto = Encargo.idProducto;
