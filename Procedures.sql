@@ -203,7 +203,7 @@ MAIN : BEGIN
     #SELECT sumProductosEnInventario AS Resultado;
     IF (sumProductosEnInventario <= minInv) THEN
         
-        SET idProveedorSeleccionado = (SELECT proveedor.idProveedor FROM proveedor 
+        SET idProveedorSeleccionado = (SELECT DISTINCT proveedor.idProveedor FROM proveedor 
 			INNER JOIN  productoxproveedor ON productoxproveedor.idProveedor = proveedor.idProveedor
 			WHERE productoxproveedor.precio = (SELECT MIN(precio) FROM productoxproveedor
 			WHERE idProducto = idProductoV) AND productoXProveedor.idProducto = idProductoV
@@ -223,12 +223,13 @@ MAIN : BEGIN
 				LEAVE bucle;
 			END IF;
 			#aqui:)
-            IF(sumProductosEnInventario + sumadorVendidos) < maxInv AND idProveedor_VAR = idProveedorSeleccionado THEN
+            IF(sumProductosEnInventario + sumadorVendidos) < maxInv AND (idProveedor_VAR = idProveedorSeleccionado)
+				AND (existencias_VAR != 0) THEN
 				IF (existencias_VAR >= (maxInv - (sumProductosEnInventario + sumadorVendidos))) THEN
 					#SELECT precio_VAR+(precio_VAR*porcGananciaP) AS "2";
 					CALL createLote(idSucursalV, idProductoV, 
                     (maxInv - (sumProductosEnInventario + sumadorVendidos)),
-                    minInv, maxInv, fechaProduccion_VAR, fechaExpiracion_VAR, 
+                    fechaProduccion_VAR, fechaExpiracion_VAR, 
                     "En mostrador", (precio_VAR+(precio_VAR*porcGananciaP)));
                                         
                     CALL updateProductoXProveedor(idProductoXProveedor_VAR, NULL, NULL,
@@ -239,7 +240,7 @@ MAIN : BEGIN
 				ELSE
 					#SELECT precio_VAR+(precio_VAR*porcGananciaP) AS "1";
 					CALL createLote(idSucursalV, idProductoV, existencias_VAR,
-						minInv, maxInv, fechaProduccion_VAR, fechaExpiracion_VAR, 
+						fechaProduccion_VAR, fechaExpiracion_VAR, 
 						"En mostrador", (precio_VAR+(precio_VAR*porcGananciaP)));
 					 CALL updateProductoXProveedor(idProductoXProveedor_VAR, NULL, NULL,
 						0, NULL, NULL, NULL);
@@ -277,6 +278,9 @@ BEGIN
 		WHERE sucursalxcliente.idCliente = idClienteV AND
         sucursalxcliente.idSucursal = idSucursalV) = 0 THEN
         SELECT "ERROR- El cliente no se encuentra registrado en la sucursal" AS Resultado;
+	ELSEIF (SELECT COUNT(*) FROM Empleado WHERE idEmpleado = idEmpleadoV AND idSucursal = idSucursalV) = 0
+		THEN
+        SELECT "ERROR- El empleado no trabaja en la sucursal" AS Resultado;
     ELSE 
 		call createPedido(curdate(), idTipoPagoV,idClienteV, idEmpleadoV, idTipoEnvioV, idSucursalV);
     
@@ -310,7 +314,7 @@ BEGIN
     
     SET idSucursalSeleccionado = (SELECT DISTINCT sucursal.idSucursal FROM Pedido 
     INNER JOIN Sucursal ON Pedido.idSucursal = Sucursal.idSucursal
-    WHERE sucursal.idSucursal = pedido.idSucursal);
+    WHERE sucursal.idSucursal = pedido.idSucursal AND Pedido.idPedido = idPedidoV);
     
     SET porcPromocion = (SELECT promocion.porcentajeDesc FROM promocion INNER JOIN Lote
 						ON promocion.idLote = lote.idLote);
@@ -327,9 +331,14 @@ BEGIN
             INNER JOIN Producto ON Lote.idProducto = Producto.idProducto
             WHERE pedido.idPedido = idPedidoV
             AND Producto.idProducto = idProductoV) = 0 THEN
-            
             SELECT "No hay existencias del producto solicitado" as Resultado;
-	
+	ELSEIF(SELECT SUM(Lote.cantidad) FROM Lote 
+			INNER JOIN Sucursal ON Lote.idSucursal = sucursal.idSucursal
+            INNER JOIN Pedido ON Sucursal.idSucursal = pedido.idSucursal
+            INNER JOIN Producto ON Lote.idProducto = Producto.idProducto
+            WHERE pedido.idPedido = idPedidoV
+            AND Producto.idProducto = idProductoV) IS NULL THEN
+            SELECT "La sucursal no cuenta con el producto" as Resultado;
     ELSE 
 	
 		OPEN cursorLote;
@@ -371,7 +380,6 @@ BEGIN
 	END IF;
 END
 $$
-
 /*------------------------------------------------------------------
 7 -  Consultar montos recolectados por envíos, fechas, sucursal y/o cliente 
 ENTRADAS: idTipoEnvioV, fechI, fechF, idSucursalV, idClienteV 
@@ -529,7 +537,11 @@ BEGIN
 	IF ganancias IS NULL THEN
 		SET ganancias = 0;
 	END IF;
-	
+	select ProductoXProveedor.precio AS Resul FROM Encargo 
+			INNER JOIN Producto ON Encargo.idProducto = Producto.idProducto 
+            INNER JOIN Proveedor ON Encargo.idProveedor = Proveedor.idProveedor
+            INNER Join ProductoXProveedor ON ProductoXProveedor.idProveedor = Encargo.idProveedor 
+            AND ProductoXProveedor.idProducto = Encargo.idProducto;
     SET perdidas = (SELECT SUM(encargo.cantidad * (select ProductoXProveedor.precio FROM Encargo 
 			INNER JOIN Producto ON Encargo.idProducto = Producto.idProducto 
             INNER JOIN Proveedor ON Encargo.idProveedor = Proveedor.idProveedor
@@ -588,7 +600,7 @@ SALIDAS: Precio del producto
 DELIMITER $$
 CREATE PROCEDURE ConsultarPreciosProductos (idProductoV INT)
 BEGIN
-	SELECT (Lote.Precio*Categoria.porcImpuesto+Lote.precio) AS Precio,
+	SELECT ((Lote.Precio * Categoria.porcImpuesto) + Lote.precio) AS Precio,
     Producto.nombreProducto FROM Producto 
     INNER JOIN Lote ON Lote.idProducto = Producto.idProducto
 	INNER JOIN Categoria ON Categoria.idCategoria = producto.idCategoria
@@ -610,7 +622,7 @@ BEGIN
 		WHERE Proveedor.idProveedor = IFNULL(idProveedorV,Proveedor.idProveedor)) = 0 THEN
 		SELECT "El proveedor no tiene productos" Resultado;
 	ELSE
-		SELECT Proveedor.nombre, Proveedor.telefono, Proveedor.porcGanancia,
+		SELECT DISTINCT Proveedor.nombre, Proveedor.telefono, Proveedor.porcGanancia,
 			Producto.nombreProducto FROM Proveedor
 		INNER JOIN ProductoXProveedor ON ProductoXProveedor.idProveedor = Proveedor.idProveedor
 		INNER JOIN Producto ON Producto.idProducto = ProductoXProveedor.idProducto

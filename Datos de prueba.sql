@@ -5,7 +5,8 @@ USE proyectoBases;
 CALL createPais ("Costa Rica"); #id=1
 CALL createPais ("Panamá");		#id=2
 CALL createPais ("Alemania");	#id=3
-#CALL readPais(1);
+
+#CALL readPais(10);
 # (IdPais, nombre)
 #CALL updatePais(null, null);
 #CALL DeletePais(1);
@@ -42,6 +43,7 @@ CALL createGerenteGeneral ("Juan Cascante", "57281923", 1000000); #id=1
 #CREATE- Recibe: nombre, direccion en otras señas, idcanton y idGerente
 CALL createSucursal("Super de Juan", "150m del Parque Central", 1, 1);		#id=1
 CALL createSucursal("Super de Juan 2", "150m del Parque Central", 2, 1);	#id=2
+CALL createSucursal("Supermercado Colón", "15Om de la iglesia", 3, 1);	#id=3
 #CALL readSucursal(1);
 # (idSucursal, nombre, direccion, idCanton, idGerenteGeneral)
 #CALL updateSucursal(null, null, null, null, null);
@@ -50,7 +52,7 @@ CALL createSucursal("Super de Juan 2", "150m del Parque Central", 2, 1);	#id=2
 #CARGOS-------------------------------------------
 CALL CreateCargo("Administracion"); 	#id= 1
 CALL CreateCargo("Facturador");			#id= 2
-CALL CreateCargo("Acomodador");		#id= 3
+CALL CreateCargo("Acomodador");			#id= 3
 CALL CreateCargo("Carnicero");			#id= 4
 CALL CreateCargo("Verdurero");			#id= 5
 CALL CreateCargo("Secretaria");			#id= 6
@@ -72,6 +74,8 @@ CALL CreateEmpleado("Esmeralda Cordero", "2019-11-17", 550000, 1, 3); 	#id = 4
 CALL CreateEmpleado("Mariana Monge", "2019-01-6", 600000, 2, 6); 		#id = 5
 CALL CreateEmpleado("Juan Cordero", "2019-8-12", 550000, 2, 5); 		#id = 6
 CALL CreateEmpleado("Melissa Montero", "2015-11-12", 550000, 2, 7); 	#id = 7
+CALL CreateEmpleado("Carlos Montero", "2016-11-12", 500000, 1, 2); 		#id = 8
+CALL CreateEmpleado("Carlos Ureña", "2016-11-12", 500000, 3, 2); 		#id = 9
 #CALL readEmpleado(1);
 # (idEmpleado, nombre, fechaContratacion, salario, idSucursal, idCargo)
 #CALL updateEmpleado(null, null, null, null, null, null);
@@ -125,17 +129,20 @@ CALL createCliente("Melissa Monge", "87117264", "meli2@gmail.com", "50 norte del
 CALL createCliente("Mario Naranjo", "71729172", "mariNar@gmail.com", "125 sur de la floristeria A", 1);	#id= 2
 CALL createCliente("Camila Cordero", "65627183", "camiiiC@gmail.com", "200 sureste del comercial M", 2);#id= 3
 CALL createCliente("Estefania Mora", "52971823", "tefaMora@gmail.com", "50 sur de la Escuela A", 1);	#id= 4
+CALL createCliente("Armando Ortega", "25638163", "armandOrtega@gmail.com", "150 oeste de la Escuela B", 3);	#id= 5
 #CALL deleteCliente(4);
 
 #SUCURSALXPRODUCTO--------------------------------------
+#Esto funciona como el usuario del cliente en la sucursal
 #CREATE- Recibe: idSucursal, idCliente
 CALL createSucursalXCliente(1,1);
 CALL createSucursalXCliente(1,2);
 CALL createSucursalXCliente(2,3);
 CALL createSucursalXCliente(1,4);
+CALL createSucursalXCliente(3,5);
 
 #PRODUCTOS------------------------------------------------
-#CREATE- Recibe: Nombre y Categoria
+#CREATE- Recibe: Nombre, Categoria, minimo y máximo
 CALL CreateProducto("Leche dos pinos 200ml", 1, 10, 50);	#id= 1
 CALL CreateProducto("Leche dos pinos 500ml", 1, 10, 50);	#id= 2
 CALL CreateProducto("Frijoles Tio Pelón 800g", 2, 15, 35);	#id= 3
@@ -149,16 +156,18 @@ CALL CreateProducto("Arroz Luisiana 1k", 4, 20, 60);		#id= 5
 CALL createLote (1, 1, 10, "2022-11-9", "2022-11-18", "En Mostrador", 1000); #id= 1
 CALL createLote (1, 2, 5, "2022-11-9", "2022-11-18", "En Mostrador", 1200); #id= 2
 CALL createLote (1, 4, 5, "2022-10-9", "2024-11-18", "En Mostrador", 1500); #id= 3
+CALL createLote (1, 4, 5, "2022-10-9", "2022-10-18", "En Mostrador", 1500); #id= 3
 #call updateLote(1,null,null,11,null,null,null,null);
 #CALL deleteSucursalXProducto(1);
 
 #PROMOCION------------------------------------------------
 #CREATE- Recibe: Fecha inicial, fecha final, porcentaje, idLote
+#Se puede probar con uno de los procedures
 CALL createPromocion("2022-09-16", "2022-10-20", 0.05, 1);
 
 #TIPO ENVIO----------------------------------------------
 #Create- Recibe:Descripcion y cobro extra
-CALL CreateTipoEnvio("fisico", 0.0);		#id= 3
+CALL CreateTipoEnvio("fisico", 0.0);		#id= 1
 CALL CreateTipoEnvio("domicilio", 0.01);	#id= 2
 
 #INVENTARIO PROVEEDOR------------------------------------
@@ -174,10 +183,14 @@ CALL createProductoXProveedor(3, 4, 50, "2022-10-14", "2023-11-25", 1000.0);
 CALL createProductoXProveedor(4, 4, 28, "2022-10-14", "2023-11-25", 1500.0);
 CALL createProductoXProveedor(5, 4, 30, "2022-10-14", "2023-11-25", 1350.0);
 CALL createProductoXProveedor(5, 4, 30, "2020-10-14", "2021-11-25", 1350.0);
+#Agregar al proveedor 1
+CALL createProductoXProveedor(1, 1, 30, "2020-10-14", "2023-11-25", 1300.0);
+CALL createProductoXProveedor(2, 2, 24, "2010-10-14", "2023-11-25", 1200.0);
 #CALL deleteProductoXProveedor(1);
 
 #PEDIDOS(ClienteXSucusal)------------------------------------------------
 #CREATE- Recibe: Fecha, idTipoPago, idCliente, idEmpleado, TipoEnvio, idSucursal
+#Se puede probar con los procedures
 CALL CreatePedido("2022-11-15", 1, 1, 1, 1, 1);
 CALL CreatePedido("2022-11-15", 1, 1, 1, 1, 1);
 #UPDATE
@@ -204,7 +217,6 @@ CALL createEncargo("2022-11-11", 1, 10, 1, 2);
 
 
 #-----------------------PRUEBAS PROCEDURES------------------------------------
-#-----------------------PRUEBAS PROCEDURES------------------------------------
 #1- Porcedure para reportes, recibe id del pais, id del producto, fecha final, fecha inicial
 #			id de la sucursal, id del proveedor, todos opcionales
 CALL reportesGerenteGeneral(NULL, NULL, NULL, NULL, NULL, NULL);
@@ -219,16 +231,23 @@ CALL consultarProveedores(NULL, "Dos Pinos");
 CALL revisarProductosSucursal(0.05);
 
 #5- Hacer pedido al proveedor, recibe el id de la sucursal que va a comprar y el del producto a comprar
-call hacerPedidoProveedor(1, 1);
+call hacerPedidoProveedor(2, 1);
+call hacerPedidoProveedor(3, 2);
 
-#6- Crear pedidos y agregar detalles
+
+#6- Crear pedidos y agregar detalles, recibe tipo de pago, cliente, empleado, tipo de envio y id de la sucursal
 CALL crearPedido(1, 2, 2, 1, 1);
-CALL Agregardetalle(2, 1, 1);
-SELECT * from lote;
-select * from productoXProveedor;
-select * from detalle;
-select * from pedido;
+CALL crearPedido(1, 5, 2, 1, 1);	#Pedido de cliente de sucursal si no tiene cuenta->Esta anotado en sucursal 3
+CALL crearPedido(1, 3, 8, 1, 2); 	#Empleado no pertenece a la sucursal
+CALL crearPedido(1, 5, 9, 1, 3);
+#idpedido, idProducto,idcantidad
+CALL Agregardetalle(1, 3, 2);
+CALL Agregardetalle(2, 1, 10);
 
+SELECT * FROM Lote;
+SELECT * FROM Pedido;
+SELECT * FROM Detalle;
+SELECT * FROM Empleado;
 #7- Consultar monto de envios, recibe el idTipoEnvioV, fechI, fechF, idSucursalV, idClienteV 
 call montoEnvios(2,"2022-11-10","2022-11-30",1,1);
 
@@ -236,7 +255,7 @@ call montoEnvios(2,"2022-11-10","2022-11-30",1,1);
 CALL bonoEmpleados();
 
 #9- Productos mas vendidos, recibe la sucursal y un rango de fechas
-CALL productosMasVendidos(NULL, NULL, NULL);
+CALL productosMasVendidos(1, NULL, NULL);
 
 #10- Clientes frecuentes, recibe la sucursal
 CALL clientesFrecuentes(NULL);
@@ -248,68 +267,23 @@ CALL reporteExpiradosSucursal(1);
 call gananciasNetas("2007-01-01", "2022-12-31", 1,1,1);
 
 #13- Informacion de bonos, recibe idSucursal, idPais, rango de fechas
-CALL informacionBonos(2, NULL, NULL, NULL);
+CALL informacionBonos(1, NULL, NULL, NULL);
 
 #14- Consultar los precios
-CALL ConsultarPreciosProductos(1);
+CALL ConsultarPreciosProductos(2);
 
 #15- Consultar productos por id del proveedor
-CALL consultaProductosProveedor(4);
+CALL consultaProductosProveedor(NULL);
 
 #16- Descartar productos vencidos de los proveedores
 CALL sacarVencidosInvProveedor();
 
 
-
-
-
-
-
-
-
-
-#Procedure para asignar promociones, recibe el porcentaje de promocion que va a asignar
-CALL revisarProductosSucursal(0.05);
-#Procedure para ver los productos expirados, recibe la sucursal(opcional)
-CALL reporteExpiradosSucursal(1);
-#Consultar empleados, recibe el idsucursal, nombre, idPuesto, descripcion puesto, rango de fechas de contratacion
-CALL consultarEmpleados(NULL, NULL, NULL, NULL, NULL, NULL);
-#Consultar proveedores por nombre proveedor o nombre producto
-CALL consultarProveedores(NULL, "Dos Pinos");
-#Consulta 
-call montoEnvios(2,"2022-11-10","2022-11-30",1,1);
-#
-call hacerPedidoProveedor(1, 1);
-#
-CALL clientesFrecuentes(NULL);
-
-call hacerPedidoProveedor(1, 1);
-select * from proveedor;
+SELECT * from lote;
 select * from productoXProveedor;
-select * from Lote;
-select * from producto;
-CALL crearPedido(1, 2, 2, 1, 1);
+select * from detalle;
 select * from pedido;
+select * from proveedor;
+select * from producto;
 select * from empleado;
 select * from cargo;
-CALL crearPedido(1, 1, 2, 1, 1);
-CALL Agregardetalle(2, 4, 4);
-
-CALL productosMasVendidos(NULL, NULL, NULL);
-
-CALL reportesGerenteGeneral(NULL, NULL, NULL, NULL, NULL, NULL);
-
-CALL ConsultarPreciosProductos(1);
-
-#----------------------------------------------------------------------
-
-CALL informacionBonos(2, NULL, NULL, NULL);
-
-CALL sacarVencidosInvProveedor();
-SELECT * FROM productoxproveedor;
-
-call gananciasNetas("2007-01-01", "2022-12-31", 1,1,1);
-call consultarEmpleados (1,null,1,null,null,null);
-select * from proveedor;
-call consultarProveedores(null, "dos pinos");
-
