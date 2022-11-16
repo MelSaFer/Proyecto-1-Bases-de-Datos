@@ -155,6 +155,9 @@ MAIN : BEGIN
                                     Lote.idSucursal = idSucursalV AND
 									Lote.Estado != "Vencido");
 	select sumProductosEnInventario;
+    IF sumProductosEnInventario IS NULL THEN
+		SET sumProductosEnInventario = 0;
+	END IF;
 	SET minInv = (SELECT DISTINCT cantidadMin FROM Producto
 		WHERE idProducto = idProductoV);
 	SET maxInv = (SELECT DISTINCT cantidadMax FROM Producto
@@ -186,6 +189,7 @@ MAIN : BEGIN
             IF(sumProductosEnInventario + sumadorVendidos) < maxInv AND idProveedor_VAR = idProveedorSeleccionado THEN
 				IF (existencias_VAR >= (maxInv - (sumProductosEnInventario + sumadorVendidos))) THEN
 					SELECT precio_VAR+(precio_VAR*porcGananciaP) AS "2";
+                    
 					CALL createLote(idSucursalV, idProductoV, 
                     (maxInv - (sumProductosEnInventario + sumadorVendidos)),
                     minInv, maxInv, fechaProduccion_VAR, fechaExpiracion_VAR, 
@@ -193,7 +197,7 @@ MAIN : BEGIN
                                         
                     CALL updateProductoXProveedor(idProductoXProveedor_VAR, NULL, NULL,
 						(existencias_VAR - (maxInv - (sumProductosEnInventario + sumadorVendidos))),
-                        NULL, NULL, NULL);
+                        NULL, NULL, NULL);	
 					SET sumadorVendidos = sumadorVendidos + (maxInv - sumProductosEnInventario);
 					LEAVE bucle;
 				ELSE
@@ -277,7 +281,7 @@ BEGIN
         IF (SELECT SUM(detalle.cantidad) FROM Empleado
         INNER JOIN Pedido on Empleado.idEmpleado = Pedido.idEmpleado
         INNER JOIN Detalle on Pedido.idPedido = Detalle.idPedido
-        WHERE Pedido.fecha >= curdate()-7) > 100 AND (SELECT cargo.descripcion FROM Empleado INNER JOIN
+        WHERE Pedido.fecha >= curdate()-7) > 1000 AND (SELECT cargo.descripcion FROM Empleado INNER JOIN
         Cargo on Empleado.idCargo = cargo.idCargo WHERE Empleado.idEmpleado = idEmpleadoV) = "facturador" THEN
         
         call createBono(100000, curdate(), idEmpleadoV);
@@ -318,10 +322,13 @@ BEGIN
     END IF;
 END
 $$
+
 CALL crearPedido(1, 2, 2, 1, 1);
 select * from pedido;
+select * from empleado;
+select * from cargo;
 CALL crearPedido(1, 1, 2, 1, 1);
-CALL Agregardetalle(1, 2, 1);
+CALL Agregardetalle(2, 4, 4);
 #---------------------------
 
 DROP PROCEDURE IF EXISTS agregarDetalle;
@@ -336,6 +343,7 @@ BEGIN
     DECLARE cantidad_VAR INT;
     DECLARE estadoV VARCHAR(30);
     DECLARE precioV DECIMAL(15,2);
+    DECLARE porcPromocion DECIMAL(5,2);
     DECLARE contadorProducto INT DEFAULT 0;
     
     DECLARE idSucursalSeleccionado INT;
@@ -347,6 +355,12 @@ BEGIN
     SET idSucursalSeleccionado = (SELECT DISTINCT sucursal.idSucursal FROM Pedido 
     INNER JOIN Sucursal ON Pedido.idSucursal = Sucursal.idSucursal
     WHERE sucursal.idSucursal = pedido.idSucursal);
+    
+    SET porcPromocion = (SELECT promocion.porcentajeDesc FROM promocion INNER JOIN Lote
+						ON promocion.idLote = lote.idLote);
+	IF (porcPromocion IS NULL) THEN
+		SET porcPromocion = 0.0;
+	END IF;
     
     IF (idPedidoV IS NULL) THEN
 		SELECT "El pedido no puede ser null" as Resultado;
@@ -366,15 +380,20 @@ BEGIN
                     null, cantidad_Var - cantidadV, null, null, null, null);
                     
                     SET contadorProducto = contadorProducto + cantidadV;
-                    call createDetalle(contadorProducto, cantidadV * precioV, idPedidoV, idProductoV);
+                    call createDetalle(contadorProducto, (precioV - (precioV * (SELECT categoria.porcImpuesto FROM Lote
+						INNER JOIN Producto ON Lote.idProducto = Producto.idProducto INNER JOIN Categoria ON Producto.idCategoria
+                        = Categoria.idCategoria WHERE lote.idLote = IFNULL(idLoteV, lote.idlote) and producto.idProducto =
+                        IFNULL(idProductoV, producto.idProducto)) ) + (precioV * porcPromocion)), idPedidoV, idProductoV);
                     LEAVE BUCLE;
-				
                 ELSE
 					CALL updateLote(idLoteV, null,
                     null, 0, null, null, null, null);
                     
                     SET contadorProducto = contadorProducto + (cantidad_Var);
-                    call createDetalle(cantidad_Var, cantidad_Var * precioV, idPedidoV, idProductoV);
+                    call createDetalle(cantidad_Var, (precioV - (precioV * (SELECT categoria.porcImpuesto FROM Lote
+						INNER JOIN Producto ON Lote.idProducto = Producto.idProducto INNER JOIN Categoria ON Producto.idCategoria
+                        = Categoria.idCategoria WHERE lote.idLote = IFNULL(idLoteV, lote.idlote) and producto.idProducto =
+                        IFNULL(idProductoV, producto.idProducto)) ) + (precioV * porcPromocion)), idPedidoV, idProductoV);
 				END IF;
 			END IF;
 		END LOOP bucle;
@@ -383,6 +402,8 @@ BEGIN
 	END IF;
 END
 $$
+
+
 
 #-------------------------------------------------------------------------------
 DROP PROCEDURE IF EXISTS generarReportes;
@@ -533,3 +554,61 @@ END
 $$
 CALL informacionBonos(2, NULL, NULL, NULL);
 
+#----------------------------------------------------------------------
+# Ganancias netas por fechas, país, sucursales y/o categoría de productos 
+# ganacias: ventas de productos a los clientes, % ganancia extra al precio del proveedor
+# gastos: compra de los productos, pago a los empleados
+# en el encargo se compran productos al precio del proveeor pero sin ganancias
+
+DROP PROCEDURE IF EXISTS gananciasNetas;
+DELIMITER $$
+CREATE PROCEDURE gananciasNetas (fechI DATE, fechF DATE, idPaisV INT, idSucursalV INT, idCategoriaProductoV INT)
+BEGIN
+	DECLARE ganancias INT;
+    DECLARE perdidas INT;
+    
+    SET ganancias = (
+		SELECT SUM(Detalle.costo * Detalle.Cantidad) FROM Detalle 
+			INNER JOIN Pedido ON Detalle.idPedido = Pedido.idPedido
+            INNER JOIN Producto on Detalle.idProducto = Producto.idProducto
+            INNER JOIN Sucursal ON Pedido.idSucursal = Sucursal.idSucursal
+            INNER JOIN Canton ON Sucursal.idCanton = Canton.idCanton
+            INNER JOIN Provincia ON Canton.idProvincia = Provincia.idProvincia
+            INNER JOIN Pais ON Provincia.idpais = Pais.idPais
+			WHERE Pedido.idSucursal = IFNULL(idSucursalV, Pedido.idSucursal)
+            AND Producto.idCategoria = IFNULL(idCategoriaProductoV, Producto.idCategoria)
+            AND Pais.idPais = IFNULL(idPaisV, Pais.idPais)
+            AND Pedido.fecha >= IFNULL(fechI, Pedido.Fecha)
+            AND Pedido.fecha <= IFNULL(fechF, Pedido.Fecha));
+	IF ganancias IS NULL THEN
+		SET ganancias = 0;
+	END IF;
+	
+    SET perdidas = (SELECT SUM(encargo.cantidad * (select ProductoXProveedor.precio FROM Encargo 
+			INNER JOIN Producto ON Encargo.idProducto = Producto.idProducto 
+            INNER JOIN Proveedor ON Encargo.idProveedor = Proveedor.idProveedor
+            INNER Join ProductoXProveedor ON ProductoXProveedor.idProveedor = Encargo.idProveedor 
+            AND ProductoXProveedor.idProducto = Encargo.idProducto))
+            
+            FROM Encargo INNER JOIN Sucursal ON Encargo.idSucursal = Sucursal.idSucursal
+            INNER JOIN Canton ON Sucursal.idCanton = Canton.idCanton
+            INNER JOIN Provincia ON Canton.idProvincia = Provincia.idProvincia
+            INNER JOIN Pais ON Provincia.idpais = Pais.idPais
+            
+            INNER JOIN Producto ON Encargo.idProducto = Producto.idProducto
+            
+            WHERE Encargo.idSucursal = IFNULL(idSucursalV, Encargo.idSucursal)
+            AND Producto.idCategoria = IFNULL(idCategoriaProductoV, Producto.idCategoria)
+            AND Pais.idPais = IFNULL(idPaisV, Pais.idPais)
+            AND Encargo.fecha >= IFNULL(fechI, Encargo.Fecha)
+            AND Encargo.fecha <= IFNULL(fechF, Encargo.Fecha));
+	IF Perdidas IS NULL THEN
+		SET Perdidas = 0;
+	END IF;
+    
+	Select ganancias - perdidas as GananciasNetas;
+
+END
+$$
+
+call gananciasNetas("2007-01-01", "2022-12-31", 1,1,1);

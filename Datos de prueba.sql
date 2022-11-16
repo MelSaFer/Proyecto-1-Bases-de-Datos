@@ -34,9 +34,9 @@ CALL createSucursal("Super de Juan 2", "150m del Parque Central", 2, 1);	#id=2
 #CARGOS-------------------------------------------
 CALL CreateCargo("Administracion"); 	#id= 1
 CALL CreateCargo("Facturador");			#id= 2
-CALL CreateCargo("Acomodadores");		#id= 3
-CALL CreateCargo("Carniceros");			#id= 4
-CALL CreateCargo("Verdureros");			#id= 5
+CALL CreateCargo("Acomodador");		#id= 3
+CALL CreateCargo("Carnicero");			#id= 4
+CALL CreateCargo("Verdurero");			#id= 5
 CALL CreateCargo("Secretaria");			#id= 6
 CALL CreateCargo("Gerencia");			#id= 7
 CALL CreateCargo("Conserje");			#id= 8
@@ -167,7 +167,7 @@ CALL CreateCriptoMONEDA("...","...", 1 );
 
 #ENCARGO------------------------------------------
 #CREATE- Recibe: Fecha, idsucursal, cantidad, idProducto, idProveedor
-CALL createEncargo("2008-9-17", 1, 10, 1, 2);
+CALL createEncargo("2022-11-11", 1, 10, 1, 2);
 #CALL deleteEncargo(2);
 
 #DETALLE--------------------------------------------
