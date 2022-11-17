@@ -8,9 +8,11 @@ DROP PROCEDURE IF EXISTS consultarProveedores;
 DROP PROCEDURE IF EXISTS revisarProductosSucursal;
 DROP PROCEDURE IF EXISTS hacerPedidoProveedor;
 DROP PROCEDURE IF EXISTS crearPedido;
+DROP PROCEDURE IF EXISTS pagarPedido;
 DROP PROCEDURE IF EXISTS agregarDetalle;
 DROP PROCEDURE IF EXISTS bonoEmpleados;
 DROP PROCEDURE IF EXISTS montoEnvios;
+DROP PROCEDURE IF EXISTS montoEnviosTotales;
 DROP PROCEDURE IF EXISTS productosMasVendidos;
 DROP PROCEDURE IF EXISTS clientesFrecuentes;
 DROP PROCEDURE IF EXISTS reporteExpiradosSucursal;
@@ -31,7 +33,7 @@ CREATE PROCEDURE reportesGerenteGeneral (idPaisV INT, idProducto INT,
 										fechaFinal DATE, fechaInicial DATE,
                                         idSucursalV INT, idProveedorV INT)
 BEGIN
-    SELECT Producto.nombreProducto AS "Producto", Detalle.cantidad, detalle.costo,
+    SELECT Producto.nombreProducto AS "Producto", SUM(Detalle.cantidad) AS "CantidadProductos", detalle.costo,
 		SUM(Detalle.Cantidad*Detalle.Costo) totalPorProducto
 		FROM Detalle
 		INNER JOIN Producto ON Producto.idProducto = Detalle.idProducto
@@ -45,6 +47,7 @@ BEGIN
 		AND Detalle.idProducto = IFNULL(idProducto, Detalle.idProducto)
 		AND Pedido.fecha <= IFNULL(fechaFinal,Pedido.fecha)
 		AND Pedido.fecha >= IFNULL(fechaInicial, Pedido.fecha)
+        AND Pedido.estadoPago = "pagado"
         #AND Encargo.idProveedor = IFNULL(idProveedorV, Encargo.idProveedor)
         AND Pais.idPais = IFNULL(idPaisV, Pais.idPais)
         GROUP BY Detalle.idProducto, Detalle.cantidad, detalle.costo;
@@ -268,8 +271,10 @@ SALIDAS: Mensajes de resultado
 DELIMITER $$
 CREATE PROCEDURE crearPedido(idTipoPagoV INT, idClienteV INT, idEmpleadoV INT, idTipoEnvioV INT, idSucursalV INT)
 BEGIN
-
-	IF (idEmpleadoV IS NOT NULL AND (select cargo.descripcion from empleado 
+	IF (idTipoPagoV IS NULL OR idClienteV IS NULL OR idEmpleadoV IS NULL  
+    OR idTipoEnvioV IS NULL OR idSucursalV IS NULL) THEN
+		SELECT "Los datos ingresados para crear el pedido no pueden ser nulos" AS Resultado;
+	ELSEIF (idEmpleadoV IS NOT NULL AND (select cargo.descripcion from empleado 
 		INNER JOIN Cargo on empleado.idCargo = cargo.idCargo
 		where empleado.idEmpleado = idEmpleadoV) != "facturador") THEN
 		SELECT "ERROR- El empleado no es facturador" AS Resultado;
@@ -280,12 +285,41 @@ BEGIN
 	ELSEIF (SELECT COUNT(*) FROM Empleado WHERE idEmpleado = idEmpleadoV AND idSucursal = idSucursalV) = 0
 		THEN
         SELECT "ERROR- El empleado no trabaja en la sucursal" AS Resultado;
+    ELSEIF(SELECT COUNT(*) FROM TipoPago Where TipoPago.idTipoPago = idTipoPagoV) = 0 THEN
+		SELECT "ERROR- El tipo de pago no existe" AS Resultado;
+        
+	ELSEIF(idTipoPagoV = 1 AND (SELECT COUNT(*) FROM Tarjeta WHERE Tarjeta.idCliente = idClienteV) = 0) THEN
+		SELECT "ERROR- El cliente quiere pagar con tarjeta pero no tiene" AS Resultado;
+	ELSEIF(idTipoPagoV = 2 AND (SELECT COUNT(*) FROM Cheque WHERE Cheque.idCliente = idClienteV) = 0) THEN
+		SELECT "ERROR- El cliente quiere Cheque con tarjeta pero no tiene" AS Resultado;
+	ELSEIF(idTipoPagoV = 4 AND (SELECT COUNT(*) FROM Criptomoneda WHERE Criptomoneda.idCliente = idClienteV) = 0) THEN
+		SELECT "ERROR- El cliente quiere pagar con Criptomoneda pero no tiene" AS Resultado;
+	
     ELSE 
 		call createPedido(curdate(), idTipoPagoV,idClienteV, idEmpleadoV, idTipoEnvioV, idSucursalV);
     
     END IF;
 END
 $$
+
+
+DELIMITER $$
+CREATE PROCEDURE pagarPedido(idPedidoV INT)
+BEGIN
+	IF (idPedidoV IS NULL) THEN
+		SELECT "ERROR- El pedido no existe en la BD" AS Resultado;
+	ELSEIF (SELECT COUNT(*) FROM PEDIDO WHERE idPedido = idPedidoV) = 0 THEN
+		SELECT "ERROR- El pedido no existe en la BD" AS Resultado;
+	ELSEIF (SELECT COUNT(*) FROM PEDIDO WHERE idPedido = idPedidoV AND pedido.estadoPago
+    = "pagado") != 0 THEN
+		SELECT "ERROR- El pedido ya está pagado" AS Resultado;
+	ELSE
+		CALL updatePedido(idPedidoV, null, "pagado", null, null, null, null, null);
+		SELECT "El pedido fue pagado" AS Resultado;
+    END IF;
+END
+$$
+
 /*------------------------------------------------------------------
 6.1 -  Procedimiento para agregar detalles al pedido
 ENTRADAS: 
@@ -325,8 +359,21 @@ BEGIN
 		SET porcPromocion = 0.0;
 	END IF;
     
-    IF (idPedidoV IS NULL) THEN
-		SELECT "El pedido no puede ser null" as Resultado;
+    # datos en null
+    IF (idPedidoV IS NULL OR idProductoV IS NULL OR cantidadV IS NULL) THEN
+		SELECT "El pedido, o producto o cantidad no pueden ser null" as Resultado;
+	# no existe el pedido
+	ELSEIF (SELECT COUNT(*) FROM Pedido where idPedido = idPedidoV) = 0 THEN
+		SELECT "El pedido no existe" as Resultado;
+	# pedido pagado
+	ELSEIF(SELECT estadoPago FROM Pedido WHERE idPedido = idPedidoV) = "pagado" THEN
+		SELECT "El pedido no puede agregar productos porque ya esta pagado" as Resultado;
+	# no existe el producto
+	ELSEIF (SELECT COUNT(*) FROM Producto where Producto.idProducto = idProductoV) = 0 THEN
+		SELECT "El producto no existe" as Resultado;
+	# el pedido esta pagado
+	ELSEIF (cantidadV <= 0) THEN
+		SELECT "La cantidad de producto no puede set <= 0" as Resultado;
 	
     ELSEIF(SELECT SUM(Lote.cantidad) FROM Lote 
 			INNER JOIN Sucursal ON Lote.idSucursal = sucursal.idSucursal
@@ -401,11 +448,32 @@ BEGIN
         AND SucursalXCliente.idCliente = IFNULL(idClienteV, SucursalXCliente.idCliente)
         AND pedido.fecha >= IFNULL(fechI, pedido.fecha)
         AND pedido.fecha <= IFNULL(fechF, pedido.fecha)
+        AND pedido.estadoPago = "pagado"
         group by tipoEnvio.idTipoEnvio;
 
 END
 $$
 
+
+DELIMITER $$
+CREATE PROCEDURE montoEnviosTotales(idTipoEnvioV INT, fechI DATE, fechF DATE, idSucursalV INT, idClienteV INT)
+BEGIN
+
+	SELECT SUM((detalle.cantidad*detalle.costo)) AS MontoDeEnvios FROM Sucursal 
+		INNER JOIN SucursalXCliente ON Sucursal.idsucursal = SucursalXCliente.idCliente
+		INNER JOIN Pedido ON SucursalXCliente.idCliente = pedido.idCliente
+        INNER JOIN Detalle ON Pedido.idpedido = detalle.idPedido
+        INNER JOIN TipoEnvio on Pedido.idTipoEnvio = TipoEnvio.idTipoEnvio
+        WHERE tipoEnvio.idTipoEnvio = IFNULL(idTipoEnvioV, tipoEnvio.idTipoEnvio)
+        AND sucursal.idSucursal = IFNULL(idSucursalV, sucursal.idSucursal)
+        AND SucursalXCliente.idCliente = IFNULL(idClienteV, SucursalXCliente.idCliente)
+        AND pedido.fecha >= IFNULL(fechI, pedido.fecha)
+        AND pedido.fecha <= IFNULL(fechF, pedido.fecha)
+        AND pedido.estadoPago = "pagado"
+        group by tipoEnvio.idTipoEnvio;
+
+END
+$$
 /*------------------------------------------------------------------
 8 -  Procedimiento para dar bonos a los empleados que superen 1000 ventas
 ENTRADAS: NONE
@@ -438,10 +506,14 @@ BEGIN
         IF (SELECT SUM(detalle.cantidad) FROM Empleado
         INNER JOIN Pedido on Empleado.idEmpleado = Pedido.idEmpleado
         INNER JOIN Detalle on Pedido.idPedido = Detalle.idPedido
-        WHERE Pedido.fecha >= curdate()-7) > 1000 AND (SELECT cargo.descripcion FROM Empleado INNER JOIN
-        Cargo on Empleado.idCargo = cargo.idCargo WHERE Empleado.idEmpleado = idEmpleadoV) = "facturador" THEN
+        WHERE Pedido.fecha >= curdate()-7 AND Empleado.idEmpleado = idEmpleadoV) >= 1000 
+        
+        AND (SELECT cargo.descripcion FROM Empleado INNER JOIN
+        Cargo on Empleado.idCargo = cargo.idCargo WHERE Empleado.idEmpleado = idEmpleadoV) = "facturador" 
+        THEN
         
         call createBono(100000, curdate(), idEmpleadoV);
+        #SELECT "Se ha creado el bono" AS RESULTADO;
         
         END IF;
 		
@@ -537,7 +609,8 @@ BEGIN
             AND Producto.idCategoria = IFNULL(idCategoriaProductoV, Producto.idCategoria)
             AND Pais.idPais = IFNULL(idPaisV, Pais.idPais)
             AND Pedido.fecha >= IFNULL(fechI, Pedido.Fecha)
-            AND Pedido.fecha <= IFNULL(fechF, Pedido.Fecha));
+            AND Pedido.fecha <= IFNULL(fechF, Pedido.Fecha)
+            AND Pedido.estadoPago = "pagado");
 	IF ganancias IS NULL THEN
 		SET ganancias = 0;
 	END IF;

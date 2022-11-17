@@ -1511,7 +1511,7 @@ BEGIN
 		WHERE Pedido.idPedido = IFNULL(idPedidoV, Pedido.idPedido)) = 0 THEN
 		SELECT "No existe Pedido con ese id" AS ERROR;
 	ELSE
-		SELECT Pedido.idPedido, Pedido.fecha, Pedido.idCliente, Pedido.idTipoPago, 
+		SELECT Pedido.idPedido, Pedido.fecha, Pedido.estadoPago, Pedido.idCliente, Pedido.idTipoPago, 
         Pedido.idEmpleado, Pedido.TipoEnvio, pedido.idSucursal FROM Pedido
 		WHERE Pedido.idPedido = IFNULL(idPedidoV, Pedido.idPedido);
 	END IF;
@@ -1519,7 +1519,7 @@ END;
 $$
 #UPDATE-------------------------------------------------------------
 DELIMITER $$
-CREATE PROCEDURE updatePedido (idPedidoV INT, newFecha DATE, newIdCliente INT, newIdTipoPago INT, 
+CREATE PROCEDURE updatePedido (idPedidoV INT, newFecha DATE, newEstadoPago VARCHAR(10), newIdCliente INT, newIdTipoPago INT, 
 								newIdEmpleado INT, newIdTipoEnvio INT, newIdSucursal INT)
 BEGIN
 	DECLARE message VARCHAR(60);
@@ -1529,6 +1529,9 @@ BEGIN
 	# no existe el pedido
 	ELSEIF (SELECT COUNT(*) FROM pedido WHERE pedido.idPedido = idPedidoV) = 0 THEN
 		SET message = "No existe el pedido";
+	# verificar estado
+	ELSEIF (newEstadoPago != "pendiente" and newEstadoPago != "pagado") THEN
+		SET message = "El estado de pago solo puede ser pendiente o pagado";
 	# se intenta agregar una fecha que no ha llegado
 	ELSEIF (newFecha > curdate()) THEN
 		SET message = "La fecha no puede ser futura";
@@ -1550,6 +1553,7 @@ BEGIN
     
 	ELSE
 		UPDATE pedido SET pedido.fecha = IFNULL(newFecha, pedido.fecha),
+        pedido.estadoPago = IFNULL(newEstadoPago, pedido.estadoPago),
         pedido.idCliente = IFNULL(newIdCliente, pedido.idCliente),
         pedido.idTipoPago = IFNULL(newIdTipoPago, pedido.idTipoPago),
         pedido.idEmpleado = IFNULL(newIdEmpleado, pedido.idEmpleado),

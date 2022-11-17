@@ -41,7 +41,7 @@ DROP TABLE IF EXISTS Pedido;
 CREATE TABLE Pedido (
 		idPedido INT PRIMARY KEY AUTO_INCREMENT,
         fecha DATE NOT NULL,
-        estadoPago VARCHAR(10) NOT NULL DEFAULT "pediente",
+        estadoPago VARCHAR(10) NOT NULL DEFAULT "pendiente",
         idCliente INT NOT NULL,
         idTipoPago INT NOT NULL,
         idEmpleado INT NOT NULL,

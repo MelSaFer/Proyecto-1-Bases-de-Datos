@@ -83,7 +83,7 @@ CALL CreateEmpleado("Carlos Ureña", "2016-11-12", 500000, 3, 2); 		#id = 9
 
 #BONOS---------------------------------------------------
 #CREATE: Recibe: Monto, fecha y id Empleado
-CALL CreateBono(10000, "2022-7-15", 2);
+#CALL CreateBono(10000, "2022-7-15", 2);
 #CALL readBono(1);
 # (idBono, monto, fecha, idEmpleado)
 #CALL updateBono(null, null, null, null);
@@ -191,11 +191,11 @@ CALL createProductoXProveedor(2, 2, 24, "2010-10-14", "2023-11-25", 1200.0);
 #PEDIDOS(ClienteXSucusal)------------------------------------------------
 #CREATE- Recibe: Fecha, idTipoPago, idCliente, idEmpleado, TipoEnvio, idSucursal
 #Se puede probar con los procedures
-CALL CreatePedido("2022-11-15", 1, 1, 1, 1, 1);
-CALL CreatePedido("2022-11-15", 1, 1, 1, 1, 1);
+CALL CreatePedido("2022-11-15", 1, 1, 2, 1, 1);
+CALL CreatePedido("2022-11-15", 1, 1, 2, 1, 1);
 #UPDATE
-##call updatePedido(1, "2022-11-11", null, null, null, null);
-
+call updatePedido(1, null, "pendiente", null, null, null, null, null);
+select * from pedido;
 
 
 #TARJETAS, CHEQUES Y CRIPTO-------------------------------
@@ -217,29 +217,38 @@ CALL createEncargo("2022-11-11", 1, 10, 1, 2);
 
 
 #-----------------------PRUEBAS PROCEDURES------------------------------------
-#1- Porcedure para reportes, recibe id del pais, id del producto, fecha final, fecha inicial
+#1- Porcedure para reportes, 
+# recibe id del pais, id del producto, fecha final, fecha inicial
 #			id de la sucursal, id del proveedor, todos opcionales
 CALL reportesGerenteGeneral(null, NULL, NULL, NULL, NULL, NULL);
 
-#2- Consultar empleados, recibe el idsucursal, nombre, idPuesto, descripcion puesto, rango de fechas de contratacion
+#2- Consultar empleados, 
+# recibe el idsucursal, nombre, idPuesto, descripcion puesto, rango de fechas de contratacion
 CALL consultarEmpleados(NULL, NULL, NULL, NULL, NULL, NULL);
 
-#3- Consultar proveedores por nombre proveedor o nombre producto
+#3- Consultar proveedores por 
+# nombre proveedor o nombre producto
 CALL consultarProveedores(NULL, "Dos Pinos");
 
-#4- Procedure para revisar el inventario de la sucursal (Si estan vencidos...),recibe el porcentaje de descuento
+#4- Procedure para revisar el inventario de la sucursal (Si estan vencidos...),
+# recibe el porcentaje de descuento
 CALL revisarProductosSucursal(0.05);
 
-#5- Hacer pedido al proveedor, recibe el id de la sucursal que va a comprar y el del producto a comprar
+#5- Hacer pedido al proveedor, 
+#recibe el id de la sucursal que va a comprar y el del producto a comprar
 call hacerPedidoProveedor(2, 1);
 call hacerPedidoProveedor(3, 2);
 
+call pagarPedido(2);
 
-#6- Crear pedidos y agregar detalles, recibe tipo de pago, cliente, empleado, tipo de envio y id de la sucursal
-CALL crearPedido(1, 2, 2, 1, 1);
+#6- Crear pedidos y agregar detalles, 
+#recibe tipo de pago, cliente, empleado, tipo de envio y id de la sucursal
+CALL crearPedido(null, null, null, null, null);
+CALL crearPedido(1, 1, 3, 2, 1);
 CALL crearPedido(1, 5, 2, 1, 1);	#Pedido de cliente de sucursal si no tiene cuenta->Esta anotado en sucursal 3
 CALL crearPedido(1, 3, 8, 1, 2); 	#Empleado no pertenece a la sucursal
-CALL crearPedido(1, 5, 9, 1, 3);
+CALL crearPedido(3, 5, 9, 1, 3);
+
 #idpedido, idProducto,idcantidad
 CALL Agregardetalle(1, 1, 2);
 CALL Agregardetalle(2, 4, 3);
@@ -251,31 +260,46 @@ SELECT * FROM Empleado;
 SELECT * FROM producto;
 SELECT * FROM Encargo;
 SELECT * FROM ProductoXProveedor;
-#7- Consultar monto de envios, recibe el idTipoEnvioV, fechI, fechF, idSucursalV, idClienteV 
-call montoEnvios(2,"2022-11-10","2022-11-30",1,1);
+SELECT * FROM Tarjeta;
+
+
+#7- Consultar monto de envios, 
+# recibe el idTipoEnvioV, fechI, fechF, idSucursalV, idClienteV 
+call montoEnvios(1,"2022-11-10","2022-11-30",1,1);
+call montoEnviosTotales(1,"2022-11-10","2022-11-30",1,1);
 
 #8- Dar bonos a empleados con mas de 1000 ventas
 CALL bonoEmpleados();
 
-#9- Productos mas vendidos, recibe la sucursal y un rango de fechas
+SELECT * FROM Bono;
+SELECT * FROM Empleado;
+
+#9- Productos mas vendidos, 
+# recibe la sucursal y un rango de fechas
 CALL productosMasVendidos(1, NULL, NULL);
 
-#10- Clientes frecuentes, recibe la sucursal
+#10- Clientes frecuentes, 
+# recibe la sucursal
 CALL clientesFrecuentes(NULL);
 
-#11- Procedure para ver los productos expirados, recibe la sucursal(opcional)
+#11- Procedure para ver los productos expirados, 
+# recibe la sucursal(opcional)
 CALL reporteExpiradosSucursal(1);
 
-#12- Ganancias netas, recibe idSucursal, rango de fechas, id pais, categoria de producto
+#12- Ganancias netas, 
+# recibe idSucursal, rango de fechas, id pais, categoria de producto
 call gananciasNetas("2007-01-01", "2022-12-31", 1,1,1);
 
-#13- Informacion de bonos, recibe idSucursal, idPais, rango de fechas
+#13- Informacion de bonos, 
+# recibe idSucursal, idPais, rango de fechas
 CALL informacionBonos(1, NULL, NULL, NULL);
 
 #14- Consultar los precios
+# idProducto
 CALL ConsultarPreciosProductos(2);
 
 #15- Consultar productos por id del proveedor
+# idProveedor
 CALL consultaProductosProveedor(NULL);
 
 #16- Descartar productos vencidos de los proveedores
