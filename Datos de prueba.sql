@@ -239,7 +239,6 @@ CALL revisarProductosSucursal(0.05);
 call hacerPedidoProveedor(2, 1);
 call hacerPedidoProveedor(3, 2);
 
-call pagarPedido(2);
 
 #6- Crear pedidos y agregar detalles, 
 #recibe tipo de pago, cliente, empleado, tipo de envio y id de la sucursal
@@ -252,6 +251,9 @@ CALL crearPedido(3, 5, 9, 1, 3);
 #idpedido, idProducto,idcantidad
 CALL Agregardetalle(1, 1, 2);
 CALL Agregardetalle(2, 4, 3);
+
+#Recibe el id del pedido a pagar
+call pagarPedido(2);
 
 SELECT * FROM Lote;
 SELECT * FROM Pedido;
